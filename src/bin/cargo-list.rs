@@ -1,11 +1,18 @@
 use anyhow::Result;
 use cargo_list::Crates;
 use clap::{builder::TypedValueParser, Parser};
-use colored::*;
 
 /// Improved `cargo install --list`
 #[derive(Parser)]
-#[command(version, max_term_width = 80)]
+#[command(name = "cargo")]
+#[command(bin_name = "cargo")]
+enum Command {
+    /// Improved `cargo install --list`
+    List(Cli),
+}
+
+#[derive(clap::Args)]
+#[command(version, long_about = None)]
 struct Cli {
     /// Output format
     #[arg(
@@ -67,7 +74,7 @@ impl std::str::FromStr for OutputFormat {
 }
 
 fn main() -> Result<()> {
-    let cli = Cli::parse();
+    let Command::List(cli) = Command::parse();
     let output_format = if cli.update {
         Markdown
     } else {
@@ -90,46 +97,43 @@ fn main() -> Result<()> {
             }
         }
         Markdown => {
-            println!("{}\n", "# cargo-list".bold());
             if installed.all.is_empty() {
-                println!("{}\n", "*No crates are installed.*".yellow().italic());
+                bunt::println!("{$yellow+italic}*No crates are installed.*{/$}\n");
                 return Ok(());
             }
             if cli.outdated {
                 if installed.outdated.is_empty() {
-                    println!("{}\n", "*All crates are up-to-date!*".green().italic());
+                    bunt::println!("{$green+italic}*All crates are up-to-date!*{/$}\n");
                     return Ok(());
                 } else {
                     for c in &installed.outdated {
-                        println!("* {}: {} => {}", c.name, c.installed.red(), c.available);
+                        bunt::println!("* {}: {[red]} => {}", c.name, c.installed, c.available);
                     }
                 }
             } else {
                 for c in &installed.all {
                     if c.outdated {
-                        println!("* {}: {} => {}", c.name, c.installed.red(), c.available);
+                        bunt::println!("* {}: {[red]} => {}", c.name, c.installed, c.available);
                     } else {
-                        println!("* {}: {}", c.name, c.installed.green());
+                        bunt::println!("* {}: {[green]}", c.name, c.installed);
                     }
                 }
                 if installed.outdated.is_empty() {
-                    println!("\n{}\n", "*All crates are up-to-date!*".green().italic());
+                    bunt::println!("\n{$green+italic}*All crates are up-to-date!*{/$}\n");
                     return Ok(());
                 }
             }
             println!();
             if cli.update {
-                println!("{}\n", "## Update".bold());
                 if installed.outdated.is_empty() {
-                    println!("{}\n", "*All crates are up-to-date!*".green().italic());
+                    bunt::println!("{$green+italic}*All crates are up-to-date!*{/$}\n");
                     return Ok(());
                 } else {
                     for c in &installed.outdated {
-                        println!("```text\n$ {}", format!("cargo install {}", c.name).bold());
+                        bunt::println!("```text\n$ {$bold}cargo install {}{/$}", c.name);
                         c.update();
                         println!("```\n");
                     }
-                    println!();
                 }
             }
         }
