@@ -3,6 +3,7 @@
   subcommand
 * 0.3.0 (2023-05-14): Add `Crates::crates()` method to simplify usage; update
   dependencies; add examples to readme; add changelog; change description
+* 0.3.1 (2023-05-14): Fix readme
 
 [`bunt`]: https://crates.io/crates/bunt
 [`clap`]: https://crates.io/crates/clap

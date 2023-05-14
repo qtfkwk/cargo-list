@@ -1,5 +1,3 @@
-List and update installed crates
-
 # Usage
 
 ```text
@@ -74,7 +72,8 @@ $ cargo install kapow
    Compiling kapow v2.10.0
     Finished release [optimized] target(s) in 7.22s
    Replacing /home/qtfkwk/.cargo/bin/kapow
-    Replaced package `kapow v2.9.1` with `kapow v2.10.0` (executable `kapow`)
+    Replaced package `kapow v2.9.1` with `kapow v2.10.0` (e\
+xecutable `kapow`)
 ```
 ~~~
 
