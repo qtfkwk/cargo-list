@@ -3,6 +3,8 @@ use rayon::prelude::*;
 use serde::Serialize;
 use std::{process::Command, str::from_utf8};
 
+//--------------------------------------------------------------------------------------------------
+
 #[derive(Debug, Serialize)]
 pub struct Crates {
     pub all: Vec<Crate>,
@@ -35,6 +37,14 @@ impl Crates {
             .cloned()
             .collect::<Vec<_>>();
         Ok(Crates { all, outdated })
+    }
+
+    pub fn crates(&self, outdated: bool) -> &[Crate] {
+        if outdated {
+            &self.outdated
+        } else {
+            &self.all
+        }
     }
 }
 

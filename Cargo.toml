@@ -1,8 +1,8 @@
 [package]
 name = "cargo-list"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
-description = "Improved `cargo install --list`"
+description = "List and update installed crates"
 repository = "https://github.com/qtfkwk/cargo-list"
 license = "MIT"
 readme = "README.md"

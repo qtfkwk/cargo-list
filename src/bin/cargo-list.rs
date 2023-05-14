@@ -2,12 +2,14 @@ use anyhow::Result;
 use cargo_list::Crates;
 use clap::{builder::TypedValueParser, Parser};
 
-/// Improved `cargo install --list`
+//--------------------------------------------------------------------------------------------------
+
+/// List and update installed crates
 #[derive(Parser)]
 #[command(name = "cargo")]
 #[command(bin_name = "cargo")]
 enum Command {
-    /// Improved `cargo install --list`
+    /// List and update installed crates
     List(Cli),
 }
 
@@ -33,6 +35,8 @@ struct Cli {
     #[arg(long, conflicts_with = "output_format")]
     update: bool,
 }
+
+//--------------------------------------------------------------------------------------------------
 
 #[derive(Clone)]
 enum OutputFormat {
@@ -73,6 +77,8 @@ impl std::str::FromStr for OutputFormat {
     }
 }
 
+//--------------------------------------------------------------------------------------------------
+
 fn main() -> Result<()> {
     let Command::List(cli) = Command::parse();
     let output_format = if cli.update {
@@ -83,18 +89,10 @@ fn main() -> Result<()> {
     let installed = Crates::new()?;
     match output_format {
         Json => {
-            if cli.outdated {
-                println!("{}", serde_json::to_string(&installed.outdated)?);
-            } else {
-                println!("{}", serde_json::to_string(&installed.all)?);
-            }
+            println!("{}", serde_json::to_string(installed.crates(cli.outdated))?);
         }
         JsonPretty => {
-            if cli.outdated {
-                println!("{}", serde_json::to_string_pretty(&installed.outdated)?);
-            } else {
-                println!("{}", serde_json::to_string_pretty(&installed.all)?);
-            }
+            println!("{}", serde_json::to_string_pretty(installed.crates(cli.outdated))?);
         }
         Markdown => {
             if installed.all.is_empty() {
@@ -138,24 +136,10 @@ fn main() -> Result<()> {
             }
         }
         Rust => {
-            println!(
-                "{:?}",
-                if cli.outdated {
-                    installed.outdated
-                } else {
-                    installed.all
-                }
-            );
+            println!("{:?}", installed.crates(cli.outdated));
         }
         RustPretty => {
-            println!(
-                "{:#?}",
-                if cli.outdated {
-                    installed.outdated
-                } else {
-                    installed.all
-                }
-            );
+            println!("{:#?}", installed.crates(cli.outdated));
         }
     }
     Ok(())
