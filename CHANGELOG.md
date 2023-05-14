@@ -4,8 +4,10 @@
 * 0.3.0 (2023-05-14): Add `Crates::crates()` method to simplify usage; update
   dependencies; add examples to readme; add changelog; change description
 * 0.3.1 (2023-05-14): Fix readme
+* 0.3.2 (2023-05-14): Clean up; remove old dependency [`pager`]
 
 [`bunt`]: https://crates.io/crates/bunt
 [`clap`]: https://crates.io/crates/clap
 [`colored`]: https://crates.io/crates/colored
+[`pager`]: https://crates.io/crates/pager
 

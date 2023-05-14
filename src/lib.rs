@@ -70,8 +70,8 @@ impl Crate {
                 .any(|x| search.contains(x))
             {
                 installed.to_string()
-            } else if let Some(installed) = search.split('"').nth(1) {
-                format!("v{installed}")
+            } else if let Some(available) = search.split('"').nth(1) {
+                format!("v{available}")
             } else {
                 String::from("?")
             }

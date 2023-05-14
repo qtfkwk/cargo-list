@@ -129,7 +129,6 @@ dependencies = [
  "bunt",
  "clap",
  "kapow",
- "pager",
  "rayon",
  "serde",
  "serde_json",
