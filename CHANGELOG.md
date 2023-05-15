@@ -6,6 +6,7 @@
 * 0.3.1 (2023-05-14): Fix readme
 * 0.3.2 (2023-05-14): Clean up; remove old dependency [`pager`] *yanked*
 * 0.3.3 (2023-05-14): Fix version
+* 0.4.0 (2023-05-15): Clean up; disable colors if stdout is not a TTY
 
 [`bunt`]: https://crates.io/crates/bunt
 [`clap`]: https://crates.io/crates/clap

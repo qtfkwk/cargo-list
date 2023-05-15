@@ -18,7 +18,7 @@ lues: json, json-pretty, md, rust,
 
 ```text
 $ cargo list -V
-cargo-list 0.3.3
+cargo-list 0.4.0
 ```
 
 # Examples
