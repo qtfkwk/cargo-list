@@ -2,6 +2,7 @@ use anyhow::Result;
 use bunt::termcolor::ColorChoice;
 use cargo_list::Crates;
 use clap::{builder::TypedValueParser, Parser};
+use is_terminal::IsTerminal;
 
 //--------------------------------------------------------------------------------------------------
 
@@ -94,7 +95,7 @@ fn main() -> Result<()> {
             );
         }
         Markdown => {
-            bunt::set_stdout_color_choice(if atty::is(atty::Stream::Stdout) {
+            bunt::set_stdout_color_choice(if std::io::stdout().is_terminal() {
                 ColorChoice::Always
             } else {
                 ColorChoice::Never
@@ -116,7 +117,7 @@ fn main() -> Result<()> {
             if n > 0 {
                 println!();
             }
-            let installed = if cli.update {
+            let installed = if cli.update && !installed.outdated.is_empty() {
                 for c in &installed.outdated {
                     bunt::println!("```text\n$ {$bold}cargo install {}{/$}", c.name);
                     c.update();

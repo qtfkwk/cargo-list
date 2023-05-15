@@ -18,7 +18,7 @@ lues: json, json-pretty, md, rust,
 
 ```text
 $ cargo list -V
-cargo-list 0.4.0
+cargo-list 0.5.0
 ```
 
 # Examples
@@ -43,7 +43,7 @@ ilable":"v2.10.0","outdated":true}]
 ## List outdated crates
 
 ```text
-$ cargo list
+$ cargo list --outdated
 * kapow: v2.9.1 => v2.10.0
 ```
 
@@ -140,4 +140,11 @@ $ cargo list --outdated
 $ cargo list -f json
 []
 ```
+
+# Changelog
+
+Please find the [`CHANGELOG.md`] in the [repository].
+
+[`CHANGELOG.md`]: https://github.com/qtfkwk/cargo-list/blob/main/CHANGELOG.md
+[repository]: https://github.com/qtfkwk/cargo-list/
 
