@@ -76,7 +76,6 @@ $ cargo list --update
 
 ```text
 $ cargo install kapow
-$ cargo install kapow
     Updating crates.io index
   Installing kapow v2.10.0
 ...
