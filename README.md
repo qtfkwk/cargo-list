@@ -12,13 +12,14 @@ lues: json, json-pretty, md, rust,
                    rust-pretty]
       --outdated   Hide up-to-date crates
       --update     Update outdated crates
+  -r, --readme     Print the readme
   -h, --help       Print help
   -V, --version    Print version
 ```
 
 ```text
 $ cargo list -V
-cargo-list 0.6.0
+cargo-list 0.7.0
 ```
 
 # Examples

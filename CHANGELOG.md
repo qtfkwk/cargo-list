@@ -13,6 +13,7 @@
 * 0.5.2 (2023-05-19): Update dependencies
 * 0.5.3 (2023-05-19): Fix readme
 * 0.6.0 (2023-05-24): Fix changelog and readme; update dependencies
+* 0.7.0 (2023-05-24): Add `--readme` option
 
 [`atty`]: https://crates.io/crates/atty
 [`bunt`]: https://crates.io/crates/bunt

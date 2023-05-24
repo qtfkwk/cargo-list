@@ -123,13 +123,14 @@ dependencies = [
 
 [[package]]
 name = "cargo-list"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "bunt",
  "clap",
  "is-terminal",
  "kapow",
+ "pager",
  "rayon",
  "serde",
  "serde_json",

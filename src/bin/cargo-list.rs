@@ -3,6 +3,7 @@ use bunt::termcolor::ColorChoice;
 use cargo_list::Crates;
 use clap::{builder::TypedValueParser, Parser};
 use is_terminal::IsTerminal;
+use pager::Pager;
 
 //--------------------------------------------------------------------------------------------------
 
@@ -36,6 +37,10 @@ struct Cli {
     /// Update outdated crates
     #[arg(long, conflicts_with = "output_format")]
     update: bool,
+
+    /// Print the readme
+    #[arg(short, long)]
+    readme: bool,
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -83,6 +88,12 @@ impl std::str::FromStr for OutputFormat {
 
 fn main() -> Result<()> {
     let Command::List(cli) = Command::parse();
+    if cli.readme {
+        let readme = include_str!("../../README.md");
+        Pager::with_pager("bat -pl md").setup();
+        print!("{}", readme);
+        return Ok(());
+    }
     let installed = Crates::new()?;
     match cli.output_format {
         Json => {
