@@ -10,8 +10,9 @@
 * 0.5.0 (2023-05-15): Replace [`atty`] dependency with [`is-terminal`]; fix
   readme
 * 0.5.1 (2023-05-16): Fix readme; update dependencies
-* 0.5.2 (2023-06-19): Update dependencies
-* 0.5.3 (2023-06-19): Fix readme
+* 0.5.2 (2023-05-19): Update dependencies
+* 0.5.3 (2023-05-19): Fix readme
+* 0.6.0 (2023-05-24): Fix changelog and readme; update dependencies
 
 [`atty`]: https://crates.io/crates/atty
 [`bunt`]: https://crates.io/crates/bunt

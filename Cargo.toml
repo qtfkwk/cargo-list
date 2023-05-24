@@ -1,6 +1,6 @@
 [package]
 name = "cargo-list"
-version = "0.5.3"
+version = "0.6.0"
 edition = "2021"
 description = "List and update installed crates"
 repository = "https://github.com/qtfkwk/cargo-list"
@@ -12,7 +12,7 @@ categories = [ "development-tools::cargo-plugins", "command-line-utilities" ]
 [dependencies]
 anyhow = "1.0.71"
 bunt = "0.2.8"
-clap = { version = "4.2.7", features = ["derive", "wrap_help"] }
+clap = { version = "4.3.0", features = ["derive", "wrap_help"] }
 is-terminal = "0.4.7"
 rayon = "1.7.0"
 serde = { version = "1.0.163", features = ["derive"] }

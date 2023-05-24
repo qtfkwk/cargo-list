@@ -39,20 +39,14 @@ $ cargo list --outdated
 ## List outdated crates in pretty-printed JSON
 
 ```text
-$ cargo list -f json-pretty
+$ cargo list --outdated -f json-pretty
 [
-  {
-    "name": "bat",
-    "installed": "v0.23.0",
-    "available": "v0.23.0",
-    "outdated": false
-  },
   {
     "name": "kapow",
     "installed": "v2.9.1",
     "available": "v2.10.0",
     "outdated": true
-  },
+  }
 ]
 ```
 
@@ -125,7 +119,7 @@ $ cargo list --outdated
 ## List outdated crates in JSON after updating
 
 ```text
-$ cargo list -f json
+$ cargo list --outdated -f json
 []
 ```
 
