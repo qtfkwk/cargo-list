@@ -16,6 +16,7 @@
 * 0.7.0 (2023-05-24): Add `--readme` option
 * 0.8.0 (2023-10-08): Add `--update-all` option and `Crate.update_force()`
   method; update dependencies
+* 0.8.1 (2023-10-08): Fix readme
 
 [`atty`]: https://crates.io/crates/atty
 [`bunt`]: https://crates.io/crates/bunt

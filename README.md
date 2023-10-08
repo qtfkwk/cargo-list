@@ -7,19 +7,18 @@ List and update installed crates
 Usage: cargo list [OPTIONS]
 
 Options:
-  -f <FORMAT>      Output format [default: md] [possible va\
-lues: json, json-pretty, md, rust,
-                   rust-pretty]
-      --outdated   Hide up-to-date crates
-      --update     Update outdated crates
-  -r, --readme     Print the readme
-  -h, --help       Print help
-  -V, --version    Print version
+  -f <FORMAT>       Output format [default: md] [possible values: json, json-pretty, md, rust, rust-pretty]
+      --outdated    Hide up-to-date crates
+      --update      Update outdated crates
+      --update-all  Force reinstall all crates
+  -r, --readme      Print the readme
+  -h, --help        Print help
+  -V, --version     Print version
 ```
 
 ```text
 $ cargo list -V
-cargo-list 0.7.0
+cargo-list 0.8.1
 ```
 
 # Examples
