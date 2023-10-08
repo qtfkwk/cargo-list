@@ -27,6 +27,7 @@ struct Cli {
         value_parser = clap::builder::PossibleValuesParser::new(
             ["json", "json-pretty", "md", "rust", "rust-pretty"],
         ).map(|s| s.parse::<OutputFormat>().unwrap()),
+        conflicts_with_all = ["update", "update_all"],
     )]
     output_format: OutputFormat,
 
@@ -35,8 +36,12 @@ struct Cli {
     outdated: bool,
 
     /// Update outdated crates
-    #[arg(long, conflicts_with = "output_format")]
+    #[arg(long, conflicts_with_all = ["output_format", "update_all"])]
     update: bool,
+
+    /// Force reinstall all crates
+    #[arg(long)]
+    update_all: bool,
 
     /// Print the readme
     #[arg(short, long)]
@@ -132,6 +137,13 @@ fn main() -> Result<()> {
                 for c in &installed.outdated {
                     bunt::println!("```text\n$ {$bold}cargo install {}{/$}", c.name);
                     c.update();
+                    println!("```\n");
+                }
+                Crates::new()?
+            } else if cli.update_all {
+                for c in &installed.all {
+                    bunt::println!("```text\n$ {$bold}cargo install --force {}{/$}", c.name);
+                    c.update_force();
                     println!("```\n");
                 }
                 Crates::new()?

@@ -93,4 +93,13 @@ impl Crate {
             .wait()
             .unwrap();
     }
+
+    pub fn update_force(&self) {
+        Command::new("cargo")
+            .args(["install", "--force", &self.name])
+            .spawn()
+            .unwrap()
+            .wait()
+            .unwrap();
+    }
 }
