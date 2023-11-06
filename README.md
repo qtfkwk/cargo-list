@@ -18,7 +18,7 @@ Options:
 
 ```text
 $ cargo list -V
-cargo-list 0.8.1
+cargo-list 0.9.0
 ```
 
 # Examples

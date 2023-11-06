@@ -24,8 +24,8 @@ $ cargo list
 
 ```text
 $ cargo list -f json
-[{"name":"bat","installed":"v0.23.0","available":"v0.23.0",\
-"outdated":false},{"name":"kapow","installed":"v2.9.1","ava\
+[{"name":"bat","installed":"v0.23.0","available":"v0.23.0",\\
+"outdated":false},{"name":"kapow","installed":"v2.9.1","ava\\
 ilable":"v2.10.0","outdated":true}]
 ```
 
@@ -65,7 +65,7 @@ $ cargo install kapow
    Compiling kapow v2.10.0
     Finished release [optimized] target(s) in 7.22s
    Replacing /home/qtfkwk/.cargo/bin/kapow
-    Replaced package `kapow v2.9.1` with `kapow v2.10.0` (e\
+    Replaced package `kapow v2.9.1` with `kapow v2.10.0` (e\\
 xecutable `kapow`)
 ```
 ~~~
@@ -84,8 +84,8 @@ $ cargo list
 
 ```text
 $ cargo list -f json
-[{"name":"bat","installed":"v0.23.0","available":"v0.23.0",\
-"outdated":false},{"name":"kapow","installed":"v2.10.0","av\
+[{"name":"bat","installed":"v0.23.0","available":"v0.23.0",\\
+"outdated":false},{"name":"kapow","installed":"v2.10.0","av\\
 ailable":"v2.10.0","outdated":false}]
 ```
 

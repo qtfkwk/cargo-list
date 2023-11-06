@@ -17,11 +17,17 @@
 * 0.8.0 (2023-10-08): Add `--update-all` option and `Crate.update_force()`
   method; update dependencies
 * 0.8.1 (2023-10-08): Fix readme
+* 0.9.0 (2023-11-06): Miscellaneous fixes for recent changes to [`kapow`]; added
+  [`Makefile.md`] for [`mkrs`]; updated dependencies
 
 [`atty`]: https://crates.io/crates/atty
 [`bunt`]: https://crates.io/crates/bunt
 [`clap`]: https://crates.io/crates/clap
 [`colored`]: https://crates.io/crates/colored
 [`is-terminal`]: https://crates.io/crates/is-terminal
+[`kapow`]: https://crates.io/crates/kapow
+[`mkrs`]: https://crates.io/crates/mkrs
 [`pager`]: https://crates.io/crates/pager
+
+[`Makefile.md`]: Makefile.md
 
