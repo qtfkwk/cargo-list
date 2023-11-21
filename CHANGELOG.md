@@ -1,3 +1,5 @@
+# Changelog
+
 * 0.1.0 (2023-05-13): Initial release
 * 0.2.0 (2023-05-13): Replace [`colored`] dependency with [`bunt`]; use [`clap`]
   subcommand
@@ -20,6 +22,7 @@
 * 0.9.0 (2023-11-06): Miscellaneous fixes for recent changes to [`kapow`]; added
   [`Makefile.md`] for [`mkrs`]; updated dependencies
 * 0.10.0 (2023-11-21): Add summary after updates; update dependencies
+* 0.10.1 (2023-11-21): Fix readme/changelog
 
 [`atty`]: https://crates.io/crates/atty
 [`bunt`]: https://crates.io/crates/bunt

@@ -123,10 +123,5 @@ $ cargo list --outdated -f json
 []
 ```
 
-# Changelog
-
-Please find the [`CHANGELOG.md`] in the [repository].
-
-[`CHANGELOG.md`]: https://github.com/qtfkwk/cargo-list/blob/main/CHANGELOG.md
-[repository]: https://github.com/qtfkwk/cargo-list/
+!inc:../CHANGELOG.md
 

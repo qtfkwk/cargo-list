@@ -10,6 +10,8 @@ cargo build --release
 # `README.md`
 
 * `t/README.md`
+* `CHANGELOG.md`
+* `Cargo.toml`
 
 ```
 cargo build --release
