@@ -139,6 +139,10 @@ fn main() -> Result<()> {
                     c.update();
                     println!("```\n");
                 }
+                for c in &installed.outdated {
+                    bunt::println!("* {}: {} => {[green]}", c.name, c.installed, c.available);
+                }
+                println!();
                 Crates::new()?
             } else if cli.update_all {
                 for c in &installed.all {

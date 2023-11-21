@@ -19,6 +19,7 @@
 * 0.8.1 (2023-10-08): Fix readme
 * 0.9.0 (2023-11-06): Miscellaneous fixes for recent changes to [`kapow`]; added
   [`Makefile.md`] for [`mkrs`]; updated dependencies
+* 0.10.0 (2023-11-21): Add summary after updates; update dependencies
 
 [`atty`]: https://crates.io/crates/atty
 [`bunt`]: https://crates.io/crates/bunt
