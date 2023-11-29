@@ -18,7 +18,7 @@ Options:
 
 ```text
 $ cargo list -V
-cargo-list 0.10.1
+cargo-list 0.11.0
 ```
 
 # Examples
@@ -159,6 +159,7 @@ $ cargo list --outdated -f json
   [`Makefile.md`] for [`mkrs`]; updated dependencies
 * 0.10.0 (2023-11-21): Add summary after updates; update dependencies
 * 0.10.1 (2023-11-21): Fix readme/changelog
+* 0.11.0 (2023-11-29): Remove dev dependency on kapow; remove [`pager`] on windows
 
 [`atty`]: https://crates.io/crates/atty
 [`bunt`]: https://crates.io/crates/bunt

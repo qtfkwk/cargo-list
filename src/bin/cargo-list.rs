@@ -3,6 +3,8 @@ use bunt::termcolor::ColorChoice;
 use cargo_list::Crates;
 use clap::{builder::TypedValueParser, Parser};
 use is_terminal::IsTerminal;
+
+#[cfg(unix)]
 use pager::Pager;
 
 //--------------------------------------------------------------------------------------------------
@@ -95,7 +97,10 @@ fn main() -> Result<()> {
     let Command::List(cli) = Command::parse();
     if cli.readme {
         let readme = include_str!("../../README.md");
+
+        #[cfg(unix)]
         Pager::with_pager("bat -pl md").setup();
+
         print!("{}", readme);
         return Ok(());
     }
