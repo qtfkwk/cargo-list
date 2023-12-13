@@ -20,7 +20,7 @@ Options:
 
 ```text
 $ cargo list -V
-cargo-list 0.12.0
+cargo-list 0.13.0
 ```
 
 # Changelog
@@ -55,6 +55,8 @@ cargo-list 0.12.0
   short options; add `-k`, `-a`, `-c` options; remove the `--update-all` option;
   report total number of crates or number of outdated crates; remove examples;
   update dependencies
+* 0.13.0 (2023-12-13): Fix the `cargo install` command to update a crate; add
+  library docstrings; general cleanup
 
 [`atty`]: https://crates.io/crates/atty
 [`bunt`]: https://crates.io/crates/bunt

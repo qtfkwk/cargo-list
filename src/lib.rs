@@ -5,15 +5,24 @@ use std::{collections::BTreeMap, fs::File, path::Path, process::Command};
 
 //--------------------------------------------------------------------------------------------------
 
+/**
+Crate kind
+*/
 #[derive(Debug, Default, Serialize, Eq, PartialEq, Hash, Clone)]
 pub enum Kind {
+    Local,
+    Git,
+
     #[default]
     External,
-    Git,
-    Local,
 }
 
 use Kind::*;
+
+/**
+All crate kinds
+*/
+pub const ALL_KINDS: [Kind; 3] = [Local, Git, External];
 
 impl Kind {
     fn from(source: &str) -> Kind {
@@ -29,12 +38,18 @@ impl Kind {
 
 //--------------------------------------------------------------------------------------------------
 
+/**
+All installed crates
+*/
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Crates {
     installs: BTreeMap<String, Crate>,
 }
 
 impl Crates {
+    /**
+    Deserialize from a `~/.cargo/.crates2.json` file
+    */
     pub fn from(path: &Path) -> Result<Crates> {
         let mut crates: Crates = serde_json::from_reader(File::open(path)?)?;
         let errors = crates
@@ -56,6 +71,9 @@ impl Crates {
         }
     }
 
+    /**
+    Sort crates by whether they are outdated
+    */
     pub fn crates(&self) -> (BTreeMap<&str, &Crate>, BTreeMap<&str, &Crate>) {
         (
             self.installs
@@ -70,6 +88,9 @@ impl Crates {
         )
     }
 
+    /**
+    Returns true if no crates are installed
+    */
     pub fn is_empty(&self) -> bool {
         self.installs.is_empty()
     }
@@ -77,6 +98,9 @@ impl Crates {
 
 //--------------------------------------------------------------------------------------------------
 
+/**
+Individual installed crate
+*/
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Crate {
     #[serde(skip_deserializing)]
@@ -111,6 +135,9 @@ pub struct Crate {
 }
 
 impl Crate {
+    /**
+    Initialize additional fields after deserialization
+    */
     fn init(&mut self, k: &str) -> Result<()> {
         let mut s = k.split(' ');
         self.name = s.next().unwrap().to_string();
@@ -143,9 +170,43 @@ impl Crate {
         Ok(())
     }
 
+    /**
+    Generate the cargo install command to update the crate
+    */
+    pub fn update_command(&self) -> Vec<String> {
+        let mut r = vec!["cargo", "install"];
+
+        if self.no_default_features {
+            r.push("--no-default-features");
+        }
+
+        let features = if self.features.is_empty() {
+            None
+        } else {
+            Some(self.features.join(","))
+        };
+        if let Some(features) = &features {
+            r.push("-F");
+            r.push(features);
+        }
+
+        r.push("--profile");
+        r.push(&self.profile);
+
+        r.push("--target");
+        r.push(&self.target);
+
+        r.push(&self.name);
+
+        r.into_iter().map(String::from).collect()
+    }
+
+    /**
+    Update the crate
+    */
     pub fn update(&self) {
         Command::new("cargo")
-            .args(["install", &self.name])
+            .args(&self.update_command()[1..])
             .spawn()
             .unwrap()
             .wait()

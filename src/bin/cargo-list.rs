@@ -141,12 +141,6 @@ fn main() -> Result<()> {
     let crates = if cli.outdated { &outdated } else { &all };
 
     match cli.output_format {
-        Json => {
-            println!("{}", serde_json::to_string(crates)?);
-        }
-        JsonPretty => {
-            println!("{}", serde_json::to_string_pretty(crates)?);
-        }
         Markdown => {
             bunt::set_stdout_color_choice(if std::io::stdout().is_terminal() {
                 ColorChoice::Always
@@ -160,17 +154,13 @@ fn main() -> Result<()> {
             }
 
             let kinds = if cli.all_kinds {
-                vec![
-                    cargo_list::Kind::Local,
-                    cargo_list::Kind::Git,
-                    cargo_list::Kind::External,
-                ]
+                cargo_list::ALL_KINDS.to_vec()
             } else {
                 cli.kind
                     .par_iter()
                     .map(|x| x.into())
                     .collect::<IndexSet<_>>()
-                    .into_par_iter()
+                    .into_iter()
                     .collect::<Vec<_>>()
             };
 
@@ -180,13 +170,20 @@ fn main() -> Result<()> {
                 let mut n = 0;
                 for c in crates.values() {
                     if c.kind == k {
-                        if [cargo_list::Kind::Git, cargo_list::Kind::Local].contains(&c.kind) {
-                            bunt::println!("* {}: {[cyan]}", c.name, c.installed);
-                        } else if c.outdated {
-                            bunt::println!("* {}: {[red]} => {}", c.name, c.installed, c.available);
-                            outdated += 1;
+                        if k == cargo_list::Kind::External {
+                            if c.outdated {
+                                bunt::println!(
+                                    "* {}: {[red]} => {}",
+                                    c.name,
+                                    c.installed,
+                                    c.available
+                                );
+                                outdated += 1;
+                            } else {
+                                bunt::println!("* {}: {[green]}", c.name, c.installed);
+                            }
                         } else {
-                            bunt::println!("* {}: {[green]}", c.name, c.installed);
+                            bunt::println!("* {}: {[cyan]}", c.name, c.installed);
                         }
                         n += 1;
                     }
@@ -194,6 +191,8 @@ fn main() -> Result<()> {
                 if n > 0 {
                     println!();
                 }
+
+                // Print a summary
                 if k == cargo_list::Kind::External {
                     if outdated == 0 {
                         bunt::println!(
@@ -202,31 +201,53 @@ fn main() -> Result<()> {
                         );
                     } else {
                         bunt::println!(
-                            "{$red+bold}**Need to update {} external crates!**{/$}\n",
+                            "{$red+bold}**Need to update {} external crate{}!**{/$}\n",
                             outdated,
+                            if outdated == 1 { "" } else { "s" },
                         );
                     }
                 }
             }
 
+            // Update crates
             if cli.update && !outdated.is_empty() {
                 for c in outdated.values() {
                     if c.kind == cargo_list::Kind::External {
-                        bunt::println!("```text\n$ {$bold}cargo install {}{/$}", c.name);
+                        bunt::println!("```text\n$ {$bold}{}{/$}", c.update_command().join(" "));
                         c.update();
                         println!("```\n");
                     }
                 }
+
+                // Print summary
                 bunt::println!(
                     "{$green+italic}*All {} external crates are up-to-date!*{/$}\n",
                     all.len(),
                 );
             }
         }
+        Json => {
+            #[cfg(unix)]
+            Pager::with_pager("bat -pl json").setup();
+
+            println!("{}", serde_json::to_string(crates)?);
+        }
+        JsonPretty => {
+            #[cfg(unix)]
+            Pager::with_pager("bat -pl json").setup();
+
+            println!("{}", serde_json::to_string_pretty(crates)?);
+        }
         Rust => {
+            #[cfg(unix)]
+            Pager::with_pager("bat -pl rust").setup();
+
             println!("{crates:?}");
         }
         RustPretty => {
+            #[cfg(unix)]
+            Pager::with_pager("bat -pl rust").setup();
+
             println!("{crates:#?}");
         }
     }
