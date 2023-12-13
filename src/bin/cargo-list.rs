@@ -1,11 +1,35 @@
 use anyhow::Result;
 use bunt::termcolor::ColorChoice;
 use cargo_list::Crates;
-use clap::{builder::TypedValueParser, Parser};
+use clap::{builder::TypedValueParser, Parser, ValueEnum};
+use expanduser::expanduser;
+use indexmap::IndexSet;
 use is_terminal::IsTerminal;
+use rayon::prelude::*;
 
 #[cfg(unix)]
 use pager::Pager;
+
+//--------------------------------------------------------------------------------------------------
+
+#[derive(Clone, ValueEnum)]
+enum Kind {
+    Local,
+    Git,
+    External,
+}
+
+use Kind::*;
+
+impl Kind {
+    fn into(&self) -> cargo_list::Kind {
+        match self {
+            External => cargo_list::Kind::External,
+            Git => cargo_list::Kind::Git,
+            Local => cargo_list::Kind::Local,
+        }
+    }
+}
 
 //--------------------------------------------------------------------------------------------------
 
@@ -29,23 +53,31 @@ struct Cli {
         value_parser = clap::builder::PossibleValuesParser::new(
             ["json", "json-pretty", "md", "rust", "rust-pretty"],
         ).map(|s| s.parse::<OutputFormat>().unwrap()),
-        conflicts_with_all = ["update", "update_all"],
+        conflicts_with = "update",
     )]
     output_format: OutputFormat,
 
+    /// Kind(s)
+    #[arg(short, value_enum, default_value = "external")]
+    kind: Vec<Kind>,
+
+    /// All kinds
+    #[arg(short)]
+    all_kinds: bool,
+
     /// Hide up-to-date crates
-    #[arg(long)]
+    #[arg(short, long)]
     outdated: bool,
 
     /// Update outdated crates
-    #[arg(long, conflicts_with_all = ["output_format", "update_all"])]
+    #[arg(short, long, conflicts_with = "output_format")]
     update: bool,
 
-    /// Force reinstall all crates
-    #[arg(long)]
-    update_all: bool,
+    /// Cargo install metadata file
+    #[arg(short, value_name = "PATH", default_value = "~/.cargo/.crates2.json")]
+    config: String,
 
-    /// Print the readme
+    /// Print readme
     #[arg(short, long)]
     readme: bool,
 }
@@ -95,25 +127,25 @@ impl std::str::FromStr for OutputFormat {
 
 fn main() -> Result<()> {
     let Command::List(cli) = Command::parse();
-    if cli.readme {
-        let readme = include_str!("../../README.md");
 
+    if cli.readme {
         #[cfg(unix)]
         Pager::with_pager("bat -pl md").setup();
 
-        print!("{}", readme);
+        print!("{}", include_str!("../../README.md"));
         return Ok(());
     }
-    let installed = Crates::new()?;
+
+    let installed = Crates::from(&expanduser(&cli.config)?)?;
+    let (all, outdated) = installed.crates();
+    let crates = if cli.outdated { &outdated } else { &all };
+
     match cli.output_format {
         Json => {
-            println!("{}", serde_json::to_string(installed.crates(cli.outdated))?);
+            println!("{}", serde_json::to_string(crates)?);
         }
         JsonPretty => {
-            println!(
-                "{}",
-                serde_json::to_string_pretty(installed.crates(cli.outdated))?
-            );
+            println!("{}", serde_json::to_string_pretty(crates)?);
         }
         Markdown => {
             bunt::set_stdout_color_choice(if std::io::stdout().is_terminal() {
@@ -121,54 +153,83 @@ fn main() -> Result<()> {
             } else {
                 ColorChoice::Never
             });
-            if installed.all.is_empty() {
+
+            if installed.is_empty() {
                 bunt::println!("{$yellow+italic}*No crates are installed.*{/$}\n");
                 return Ok(());
             }
-            let mut n = 0;
-            for c in &installed.all {
-                if c.outdated {
-                    bunt::println!("* {}: {[red]} => {}", c.name, c.installed, c.available);
-                    n += 1;
-                } else if !cli.outdated {
-                    bunt::println!("* {}: {[green]}", c.name, c.installed);
-                    n += 1;
-                }
-            }
-            if n > 0 {
-                println!();
-            }
-            let installed = if cli.update && !installed.outdated.is_empty() {
-                for c in &installed.outdated {
-                    bunt::println!("```text\n$ {$bold}cargo install {}{/$}", c.name);
-                    c.update();
-                    println!("```\n");
-                }
-                for c in &installed.outdated {
-                    bunt::println!("* {}: {} => {[green]}", c.name, c.installed, c.available);
-                }
-                println!();
-                Crates::new()?
-            } else if cli.update_all {
-                for c in &installed.all {
-                    bunt::println!("```text\n$ {$bold}cargo install --force {}{/$}", c.name);
-                    c.update_force();
-                    println!("```\n");
-                }
-                Crates::new()?
+
+            let kinds = if cli.all_kinds {
+                vec![
+                    cargo_list::Kind::Local,
+                    cargo_list::Kind::Git,
+                    cargo_list::Kind::External,
+                ]
             } else {
-                installed
+                cli.kind
+                    .par_iter()
+                    .map(|x| x.into())
+                    .collect::<IndexSet<_>>()
+                    .into_par_iter()
+                    .collect::<Vec<_>>()
             };
-            if installed.outdated.is_empty() {
-                bunt::println!("{$green+italic}*All crates are up-to-date!*{/$}\n");
+
+            for k in kinds {
+                bunt::println!("{$magenta+bold}# {:?}{/$}\n", k);
+                let mut outdated = 0;
+                let mut n = 0;
+                for c in crates.values() {
+                    if c.kind == k {
+                        if [cargo_list::Kind::Git, cargo_list::Kind::Local].contains(&c.kind) {
+                            bunt::println!("* {}: {[cyan]}", c.name, c.installed);
+                        } else if c.outdated {
+                            bunt::println!("* {}: {[red]} => {}", c.name, c.installed, c.available);
+                            outdated += 1;
+                        } else {
+                            bunt::println!("* {}: {[green]}", c.name, c.installed);
+                        }
+                        n += 1;
+                    }
+                }
+                if n > 0 {
+                    println!();
+                }
+                if k == cargo_list::Kind::External {
+                    if outdated == 0 {
+                        bunt::println!(
+                            "{$green+italic}*All {} external crates are up-to-date!*{/$}\n",
+                            all.len(),
+                        );
+                    } else {
+                        bunt::println!(
+                            "{$red+bold}**Need to update {} external crates!**{/$}\n",
+                            outdated,
+                        );
+                    }
+                }
+            }
+
+            if cli.update && !outdated.is_empty() {
+                for c in outdated.values() {
+                    if c.kind == cargo_list::Kind::External {
+                        bunt::println!("```text\n$ {$bold}cargo install {}{/$}", c.name);
+                        c.update();
+                        println!("```\n");
+                    }
+                }
+                bunt::println!(
+                    "{$green+italic}*All {} external crates are up-to-date!*{/$}\n",
+                    all.len(),
+                );
             }
         }
         Rust => {
-            println!("{:?}", installed.crates(cli.outdated));
+            println!("{crates:?}");
         }
         RustPretty => {
-            println!("{:#?}", installed.crates(cli.outdated));
+            println!("{crates:#?}");
         }
     }
+
     Ok(())
 }

@@ -23,7 +23,13 @@
   [`Makefile.md`] for [`mkrs`]; updated dependencies
 * 0.10.0 (2023-11-21): Add summary after updates; update dependencies
 * 0.10.1 (2023-11-21): Fix readme/changelog
-* 0.11.0 (2023-11-29): Remove dev dependency on kapow; remove [`pager`] on windows
+* 0.11.0 (2023-11-29): Remove dev dependency on kapow; remove [`pager`] on
+  windows
+* 0.12.0 (2023-12-13): Use the user's `~/.cargo/.crates2.json` instead of
+  running `cargo install --list` and parsing; list local and git crates; enable
+  short options; add `-k`, `-a`, `-c` options; remove the `--update-all` option;
+  report total number of crates or number of outdated crates; remove examples;
+  update dependencies
 
 [`atty`]: https://crates.io/crates/atty
 [`bunt`]: https://crates.io/crates/bunt

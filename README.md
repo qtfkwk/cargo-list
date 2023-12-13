@@ -7,131 +7,20 @@ List and update installed crates
 Usage: cargo list [OPTIONS]
 
 Options:
-  -f <FORMAT>       Output format [default: md] [possible values: json, json-pretty, md, rust, rust-pretty]
-      --outdated    Hide up-to-date crates
-      --update      Update outdated crates
-      --update-all  Force reinstall all crates
-  -r, --readme      Print the readme
-  -h, --help        Print help
-  -V, --version     Print version
+  -f <FORMAT>      Output format [default: md] [possible values: json, json-pretty, md, rust, rust-pretty]
+  -k <KIND>        Kind(s) [default: external] [possible values: local, git, external]
+  -a               All kinds
+  -o, --outdated   Hide up-to-date crates
+  -u, --update     Update outdated crates
+  -c <PATH>        Cargo install metadata file [default: ~/.cargo/.crates2.json]
+  -r, --readme     Print readme
+  -h, --help       Print help
+  -V, --version    Print version
 ```
 
 ```text
 $ cargo list -V
-cargo-list 0.11.0
-```
-
-# Examples
-
-## List installed crates
-
-```text
-$ cargo list
-* bat: v0.23.0
-* kapow: v2.9.1 => v2.10.0
-```
-
-## List installed crates in JSON
-
-```text
-$ cargo list -f json
-[{"name":"bat","installed":"v0.23.0","available":"v0.23.0",\
-"outdated":false},{"name":"kapow","installed":"v2.9.1","ava\
-ilable":"v2.10.0","outdated":true}]
-```
-
-## List outdated crates
-
-```text
-$ cargo list --outdated
-* kapow: v2.9.1 => v2.10.0
-```
-
-## List outdated crates in pretty-printed JSON
-
-```text
-$ cargo list --outdated -f json-pretty
-[
-  {
-    "name": "kapow",
-    "installed": "v2.9.1",
-    "available": "v2.10.0",
-    "outdated": true
-  }
-]
-```
-
-## Update outdated crates
-
-~~~text
-$ cargo list --update
-* bat: v0.23.0
-* kapow: v2.9.1 => v2.10.0
-
-```text
-$ cargo install kapow
-    Updating crates.io index
-  Installing kapow v2.10.0
-...
-   Compiling kapow v2.10.0
-    Finished release [optimized] target(s) in 7.22s
-   Replacing /home/qtfkwk/.cargo/bin/kapow
-    Replaced package `kapow v2.9.1` with `kapow v2.10.0` (e\
-xecutable `kapow`)
-```
-~~~
-
-## List installed crates after updating
-
-```text
-$ cargo list
-* bat: v0.23.0
-* kapow: v2.10.0
-
-*All crates are up-to-date!*
-```
-
-## List installed crates in JSON after updating
-
-```text
-$ cargo list -f json
-[{"name":"bat","installed":"v0.23.0","available":"v0.23.0",\
-"outdated":false},{"name":"kapow","installed":"v2.10.0","av\
-ailable":"v2.10.0","outdated":false}]
-```
-
-## List installed crates in pretty-printed JSON after updating
-
-```text
-$ cargo list -f json-pretty
-[
-  {
-    "name": "bat",
-    "installed": "v0.23.0",
-    "available": "v0.23.0",
-    "outdated": false
-  },
-  {
-    "name": "kapow",
-    "installed": "v2.10.0",
-    "available": "v2.10.0",
-    "outdated": false
-  },
-]
-```
-
-## List outdated crates after updating
-
-```text
-$ cargo list --outdated
-*All crates are up-to-date!*
-```
-
-## List outdated crates in JSON after updating
-
-```text
-$ cargo list --outdated -f json
-[]
+cargo-list 0.12.0
 ```
 
 # Changelog
@@ -159,7 +48,13 @@ $ cargo list --outdated -f json
   [`Makefile.md`] for [`mkrs`]; updated dependencies
 * 0.10.0 (2023-11-21): Add summary after updates; update dependencies
 * 0.10.1 (2023-11-21): Fix readme/changelog
-* 0.11.0 (2023-11-29): Remove dev dependency on kapow; remove [`pager`] on windows
+* 0.11.0 (2023-11-29): Remove dev dependency on kapow; remove [`pager`] on
+  windows
+* 0.12.0 (2023-12-13): Use the user's `~/.cargo/.crates2.json` instead of
+  running `cargo install --list` and parsing; list local and git crates; enable
+  short options; add `-k`, `-a`, `-c` options; remove the `--update-all` option;
+  report total number of crates or number of outdated crates; remove examples;
+  update dependencies
 
 [`atty`]: https://crates.io/crates/atty
 [`bunt`]: https://crates.io/crates/bunt
