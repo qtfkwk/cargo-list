@@ -1,5 +1,7 @@
 # Usage
 
+## CLI
+
 ```text
 $ cargo list -h
 !run:../target/release/cargo-list list -h
@@ -9,6 +11,10 @@ $ cargo list -h
 $ cargo list -V
 !run:../target/release/cargo-list list -V
 ```
+
+## Library
+
+!run:sed 's/^# //' LIBRARY.md
 
 # Changelog
 

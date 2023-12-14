@@ -2,6 +2,8 @@
 
 * clippy
 * `README.md`
+* test
+* doc
 
 ```
 cargo build --release
@@ -10,6 +12,7 @@ cargo build --release
 # `README.md`
 
 * `t/README.md`
+* `t/LIBRARY.md`
 * `CHANGELOG.md`
 * `Cargo.toml`
 
@@ -27,7 +30,13 @@ cargo clippy -- -D clippy::all
 # test
 
 ```
-cargo test
+cargo test it_works -- --nocapture
+```
+
+# doc
+
+```
+cargo doc
 ```
 
 # check

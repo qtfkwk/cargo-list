@@ -1,37 +1,8 @@
-# Usage
-
-## CLI
-
-```text
-$ cargo list -h
-List and update installed crates
-
-Usage: cargo list [OPTIONS]
-
-Options:
-  -f <FORMAT>      Output format [default: md] [possible values: json, json-pretty, md, rust, rust-pretty]
-  -k <KIND>        Kind(s) [default: external] [possible values: local, git, external]
-  -a               All kinds
-  -o, --outdated   Hide up-to-date crates
-  -u, --update     Update outdated crates
-  -c <PATH>        Cargo install metadata file [default: ~/.cargo/.crates2.json]
-  -r, --readme     Print readme
-  -h, --help       Print help
-  -V, --version    Print version
-```
-
-```text
-$ cargo list -V
-cargo-list 0.14.0
-```
-
-## Library
-
 ```rust
 use cargo_list::Crates;
-use expanduser::expanduser;
-
-let path = expanduser("~/.cargo/.crates2.json").unwrap();
+# use expanduser::expanduser;
+# 
+# let path = expanduser("~/.cargo/.crates2.json").unwrap();
 
 match Crates::from(&path) {
     Ok(installed) => {
@@ -71,11 +42,3 @@ match Crates::from(&path) {
     }
 }
 ```
-
-# Changelog
-
-Please read the [CHANGELOG.md] in the [repository].
-
-[CHANGELOG.md]: https://github.com/qtfkwk/cargo-list/blob/main/CHANGELOG.md
-[repository]: https://github.com/qtfkwk/cargo-list
-

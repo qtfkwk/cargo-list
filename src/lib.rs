@@ -1,3 +1,7 @@
+#![doc = include_str!("../t/LIBRARY.md")]
+
+//--------------------------------------------------------------------------------------------------
+
 use anyhow::{anyhow, Result};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};

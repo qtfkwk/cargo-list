@@ -33,6 +33,8 @@
 * 0.13.0 (2023-12-13): Fix the `cargo install` command to update a crate; add
   library docstrings; general cleanup
     * 0.13.1 (2023-12-13): Replace the changelog in the readme with a link
+* 0.14.0 (2023-12-14): Add library usage example to readme, module doc, and
+  integration test
 
 [`atty`]: https://crates.io/crates/atty
 [`bunt`]: https://crates.io/crates/bunt
