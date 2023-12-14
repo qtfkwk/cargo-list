@@ -167,8 +167,9 @@ fn main() -> Result<()> {
             for k in kinds {
                 bunt::println!("{$magenta+bold}# {:?}{/$}\n", k);
                 let mut outdated = 0;
+                let mut external = 0;
                 let mut n = 0;
-                for c in crates.values() {
+                for c in all.values() {
                     if c.kind == k {
                         if k == cargo_list::Kind::External {
                             if c.outdated {
@@ -178,14 +179,17 @@ fn main() -> Result<()> {
                                     c.installed,
                                     c.available
                                 );
+                                n += 1;
                                 outdated += 1;
-                            } else {
+                            } else if !cli.outdated {
                                 bunt::println!("* {}: {[green]}", c.name, c.installed);
+                                n += 1;
                             }
-                        } else {
+                            external += 1;
+                        } else if !cli.outdated {
                             bunt::println!("* {}: {[cyan]}", c.name, c.installed);
+                            n += 1;
                         }
-                        n += 1;
                     }
                 }
                 if n > 0 {
@@ -196,8 +200,9 @@ fn main() -> Result<()> {
                 if k == cargo_list::Kind::External {
                     if outdated == 0 {
                         bunt::println!(
-                            "{$green+italic}*All {} external crates are up-to-date!*{/$}\n",
-                            all.len(),
+                            "{$green+italic}*All {} external crate{} are up-to-date!*{/$}\n",
+                            external,
+                            if external == 1 { "" } else { "s" },
                         );
                     } else {
                         bunt::println!(
