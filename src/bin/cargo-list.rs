@@ -137,7 +137,8 @@ fn main() -> Result<()> {
     }
 
     let installed = Crates::from(&expanduser(&cli.config)?)?;
-    let (all, outdated) = installed.crates();
+    let all = installed.all();
+    let outdated = installed.outdated();
     let crates = if cli.outdated { &outdated } else { &all };
 
     match cli.output_format {

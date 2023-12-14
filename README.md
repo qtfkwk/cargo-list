@@ -22,7 +22,7 @@ Options:
 
 ```text
 $ cargo list -V
-cargo-list 0.14.2
+cargo-list 0.15.0
 ```
 
 ## Library
@@ -38,10 +38,11 @@ match Crates::from(&path) {
         if installed.is_empty() {
             println!("No crates installed!");
         } else {
-            let (all, outdated) = installed.crates();
+            let outdated = installed.outdated();
 
             if outdated.is_empty() {
                 // List all crates in CSV
+                let all = installed.all();
                 println!("Name,Installed");
                 for (name, c) in &all {
                     println!("{name},{}", c.installed);

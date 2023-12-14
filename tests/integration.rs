@@ -10,12 +10,12 @@ fn it_works() {
             if installed.is_empty() {
                 println!("No crates installed!");
             } else {
-                let (all, outdated) = installed.crates();
+                let outdated = installed.outdated();
 
                 if outdated.is_empty() {
                     // List all crates in CSV
                     println!("Name,Installed");
-                    for (name, c) in &all {
+                    for (name, c) in &installed.all() {
                         println!("{name},{}", c.installed);
                     }
                 } else {

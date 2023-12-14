@@ -52,7 +52,12 @@ pub struct Crates {
 
 impl Crates {
     /**
-    Deserialize from a `~/.cargo/.crates2.json` file
+    Deserialize from a `~/.cargo/.crates2.json` file and process each crate in
+    parallel to:
+
+    * Parse the name, version, source, rust version
+    * Get the latest avaiable version
+    * Determine the crate type
     */
     pub fn from(path: &Path) -> Result<Crates> {
         let mut crates: Crates = serde_json::from_reader(File::open(path)?)?;
@@ -76,27 +81,31 @@ impl Crates {
     }
 
     /**
-    Sort crates by whether they are outdated
-    */
-    pub fn crates(&self) -> (BTreeMap<&str, &Crate>, BTreeMap<&str, &Crate>) {
-        (
-            self.installs
-                .values()
-                .map(|x| (x.name.as_str(), x))
-                .collect(),
-            self.installs
-                .values()
-                .filter(|x| x.outdated)
-                .map(|x| (x.name.as_str(), x))
-                .collect(),
-        )
-    }
-
-    /**
-    Returns true if no crates are installed
+    Return true if no crates are installed
     */
     pub fn is_empty(&self) -> bool {
         self.installs.is_empty()
+    }
+
+    /**
+    Return a view of all crates
+    */
+    pub fn all(&self) -> BTreeMap<&str, &Crate> {
+        self.installs
+            .values()
+            .map(|x| (x.name.as_str(), x))
+            .collect()
+    }
+
+    /**
+    Return a view of outdated crates
+    */
+    pub fn outdated(&self) -> BTreeMap<&str, &Crate> {
+        self.installs
+            .values()
+            .filter(|x| x.outdated)
+            .map(|x| (x.name.as_str(), x))
+            .collect()
     }
 }
 
@@ -167,7 +176,7 @@ impl Crate {
             .to_string();
 
         if self.kind == External {
-            self.available = cargo_search_version(&self.name, &self.installed)?;
+            self.available = latest(&self.name)?.unwrap_or_else(|| self.installed.clone());
             self.outdated = self.installed != self.available;
         }
 
@@ -220,21 +229,25 @@ impl Crate {
 
 //--------------------------------------------------------------------------------------------------
 
-fn cargo_search_version(name: &str, installed: &str) -> Result<String> {
-    let c = Command::new("cargo")
-        .args(["search", "--limit", "1", name])
-        .output()?;
-    let result = std::str::from_utf8(&c.stdout)?;
-    Ok(
+/**
+Get the latest available version for a crate via `cargo search`
+*/
+pub fn latest(name: &str) -> Result<Option<String>> {
+    let result = std::str::from_utf8(
+        &Command::new("cargo")
+            .args(["search", "--limit", "1", name])
+            .output()?
+            .stdout,
+    )?
+    .to_string();
+    Ok(result.split('"').nth(1).and_then(|available| {
         if ["alpha", "beta", "rc"]
             .par_iter()
-            .any(|x| result.contains(x))
+            .any(|x| available.contains(x))
         {
-            installed.to_string()
-        } else if let Some(available) = result.split('"').nth(1) {
-            available.to_string()
+            None
         } else {
-            String::from("?")
-        },
-    )
+            Some(available.to_string())
+        }
+    }))
 }

@@ -37,6 +37,9 @@
   integration test
     * 0.14.1 (2023-12-14): Fix external crate count
     * 0.14.2 (2023-12-14): Fix another external crate count
+* 0.15.0 (2023-12-14): Clarify and expose the `latest` function; split the
+  `Crates::crates` method to enable getting views of `all` or `outdated` crates
+  separately; improve doc
 
 [`atty`]: https://crates.io/crates/atty
 [`bunt`]: https://crates.io/crates/bunt
