@@ -36,6 +36,7 @@
 * 0.14.0 (2023-12-14): Add library usage example to readme, module doc, and
   integration test
     * 0.14.1 (2023-12-14): Fix external crate count
+    * 0.14.2 (2023-12-14): Fix another external crate count
 
 [`atty`]: https://crates.io/crates/atty
 [`bunt`]: https://crates.io/crates/bunt

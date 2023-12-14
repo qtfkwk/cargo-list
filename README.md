@@ -22,7 +22,7 @@ Options:
 
 ```text
 $ cargo list -V
-cargo-list 0.14.1
+cargo-list 0.14.2
 ```
 
 ## Library

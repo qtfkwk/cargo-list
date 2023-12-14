@@ -164,10 +164,10 @@ fn main() -> Result<()> {
                     .collect::<Vec<_>>()
             };
 
+            let mut external = 0;
             for k in kinds {
                 bunt::println!("{$magenta+bold}# {:?}{/$}\n", k);
                 let mut outdated = 0;
-                let mut external = 0;
                 let mut n = 0;
                 for c in all.values() {
                     if c.kind == k {
@@ -226,8 +226,9 @@ fn main() -> Result<()> {
 
                 // Print summary
                 bunt::println!(
-                    "{$green+italic}*All {} external crates are up-to-date!*{/$}\n",
-                    all.len(),
+                    "{$green+italic}*All {} external crate{} are up-to-date!*{/$}\n",
+                    external,
+                    if external == 1 { "" } else { "s" },
                 );
             }
         }
