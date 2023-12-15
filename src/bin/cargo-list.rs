@@ -69,9 +69,18 @@ struct Cli {
     #[arg(short, long)]
     outdated: bool,
 
+    /// Consider a crate to be outdated if compiled with a Rust version
+    /// different than the active toolchain
+    #[arg(short = 'R')]
+    outdated_rust: bool,
+
     /// Update outdated crates
     #[arg(short, long, conflicts_with = "output_format")]
     update: bool,
+
+    /// Dry run
+    #[arg(short = 'n', long)]
+    dry_run: bool,
 
     /// Cargo install metadata file
     #[arg(short, value_name = "PATH", default_value = "~/.cargo/.crates2.json")]
@@ -86,9 +95,9 @@ struct Cli {
 
 #[derive(Clone)]
 enum OutputFormat {
+    Markdown,
     Json,
     JsonPretty,
-    Markdown,
     Rust,
     RustPretty,
 }
@@ -98,9 +107,9 @@ use OutputFormat::*;
 impl std::fmt::Display for OutputFormat {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let s = match self {
+            Markdown => "md",
             Json => "json",
             JsonPretty => "json-pretty",
-            Markdown => "md",
             Rust => "rust",
             RustPretty => "rust-pretty",
         };
@@ -113,9 +122,9 @@ impl std::str::FromStr for OutputFormat {
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         match s {
+            "md" => Ok(Markdown),
             "json" => Ok(Json),
             "json-pretty" => Ok(JsonPretty),
-            "md" => Ok(Markdown),
             "rust" => Ok(Rust),
             "rust-pretty" => Ok(RustPretty),
             _ => Err(format!("Unknown output format: {s}")),
@@ -139,7 +148,16 @@ fn main() -> Result<()> {
     let installed = Crates::from(&expanduser(&cli.config)?)?;
     let all = installed.all();
     let outdated = installed.outdated();
-    let crates = if cli.outdated { &outdated } else { &all };
+    let outdated_rust = installed.outdated_rust();
+    let crates = if cli.outdated {
+        if cli.outdated_rust {
+            &outdated_rust
+        } else {
+            &outdated
+        }
+    } else {
+        &all
+    };
 
     match cli.output_format {
         Markdown => {
@@ -168,6 +186,15 @@ fn main() -> Result<()> {
             let mut external = 0;
             for k in kinds {
                 bunt::println!("{$magenta+bold}# {:?}{/$}\n", k);
+                if k == cargo_list::Kind::External
+                    && cli.outdated_rust
+                    && (!cli.outdated || !outdated_rust.is_empty())
+                {
+                    bunt::println!(
+                        "Active toolchain Rust version: {[bold]}\n",
+                        installed.current_rust
+                    );
+                }
                 let mut outdated = 0;
                 let mut n = 0;
                 for c in all.values() {
@@ -178,7 +205,16 @@ fn main() -> Result<()> {
                                     "* {}: {[red]} => {}",
                                     c.name,
                                     c.installed,
-                                    c.available
+                                    c.available,
+                                );
+                                n += 1;
+                                outdated += 1;
+                            } else if cli.outdated_rust && c.outdated_rust {
+                                bunt::println!(
+                                    "* {}: {[green]} (Rust: {[red]})",
+                                    c.name,
+                                    c.installed,
+                                    c.rust_version,
                                 );
                                 n += 1;
                                 outdated += 1;
@@ -216,21 +252,32 @@ fn main() -> Result<()> {
             }
 
             // Update crates
-            if cli.update && !outdated.is_empty() {
-                for c in outdated.values() {
+            if cli.update
+                && (!outdated.is_empty() || (cli.outdated_rust && !outdated_rust.is_empty()))
+            {
+                for c in outdated.values().chain(outdated_rust.values()) {
                     if c.kind == cargo_list::Kind::External {
-                        bunt::println!("```text\n$ {$bold}{}{/$}", c.update_command().join(" "));
-                        c.update();
+                        if cli.dry_run {
+                            bunt::println!("```bash\n{$bold}{}{/$}", c.update_command().join(" "));
+                        } else {
+                            bunt::println!(
+                                "```text\n$ {$bold}{}{/$}",
+                                c.update_command().join(" ")
+                            );
+                            c.update();
+                        }
                         println!("```\n");
                     }
                 }
 
                 // Print summary
-                bunt::println!(
-                    "{$green+italic}*All {} external crate{} are up-to-date!*{/$}\n",
-                    external,
-                    if external == 1 { "" } else { "s" },
-                );
+                if !cli.dry_run {
+                    bunt::println!(
+                        "{$green+italic}*All {} external crate{} are up-to-date!*{/$}\n",
+                        external,
+                        if external == 1 { "" } else { "s" },
+                    );
+                }
             }
         }
         Json => {

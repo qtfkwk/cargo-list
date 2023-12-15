@@ -48,6 +48,9 @@ All installed crates
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Crates {
     installs: BTreeMap<String, Crate>,
+
+    #[serde(skip)]
+    pub current_rust: String,
 }
 
 impl Crates {
@@ -61,10 +64,11 @@ impl Crates {
     */
     pub fn from(path: &Path) -> Result<Crates> {
         let mut crates: Crates = serde_json::from_reader(File::open(path)?)?;
+        crates.current_rust = active_rust();
         let errors = crates
             .installs
             .par_iter_mut()
-            .filter_map(|(k, v)| v.init(k).err())
+            .filter_map(|(k, v)| v.init(k, &crates.current_rust).err())
             .collect::<Vec<_>>();
         if errors.is_empty() {
             Ok(crates)
@@ -107,6 +111,17 @@ impl Crates {
             .map(|x| (x.name.as_str(), x))
             .collect()
     }
+
+    /**
+    Return a view of external crates compiled with outdated Rust
+    */
+    pub fn outdated_rust(&self) -> BTreeMap<&str, &Crate> {
+        self.installs
+            .values()
+            .filter(|x| x.outdated_rust && x.kind == External)
+            .map(|x| (x.name.as_str(), x))
+            .collect()
+    }
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -129,10 +144,13 @@ pub struct Crate {
     pub available: String,
 
     #[serde(skip_deserializing)]
-    rust_version: String,
+    pub rust_version: String,
 
     #[serde(skip_deserializing)]
     pub outdated: bool,
+
+    #[serde(skip_deserializing)]
+    pub outdated_rust: bool,
 
     #[serde(skip_deserializing)]
     source: String,
@@ -151,7 +169,7 @@ impl Crate {
     /**
     Initialize additional fields after deserialization
     */
-    fn init(&mut self, k: &str) -> Result<()> {
+    fn init(&mut self, k: &str, current_rust: &str) -> Result<()> {
         let mut s = k.split(' ');
         self.name = s.next().unwrap().to_string();
         self.installed = s.next().unwrap().to_string();
@@ -174,6 +192,8 @@ impl Crate {
             .unwrap()
             .0
             .to_string();
+
+        self.outdated_rust = self.rust_version != current_rust;
 
         if self.kind == External {
             self.available = latest(&self.name)?.unwrap_or_else(|| self.installed.clone());
@@ -208,6 +228,10 @@ impl Crate {
 
         r.push("--target");
         r.push(&self.target);
+
+        if self.outdated_rust {
+            r.push("--force");
+        }
 
         r.push(&self.name);
 
@@ -250,4 +274,25 @@ pub fn latest(name: &str) -> Result<Option<String>> {
             Some(available.to_string())
         }
     }))
+}
+
+/**
+Get the Rust version of the active toolchain
+*/
+pub fn active_rust() -> String {
+    std::str::from_utf8(
+        &Command::new("rustup")
+            .args(["show", "active-toolchain", "-v"])
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap()
+    .split('\n')
+    .nth(1)
+    .unwrap()
+    .split(' ')
+    .nth(1)
+    .unwrap()
+    .to_string()
 }

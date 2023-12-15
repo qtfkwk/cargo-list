@@ -40,6 +40,7 @@
 * 0.15.0 (2023-12-14): Clarify and expose the `latest` function; split the
   `Crates::crates` method to enable getting views of `all` or `outdated` crates
   separately; improve doc
+* 0.16.0 (2023-12-15): Add the `-R` and `-n` options; add CLI examples to readme
 
 [`atty`]: https://crates.io/crates/atty
 [`bunt`]: https://crates.io/crates/bunt
