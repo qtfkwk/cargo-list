@@ -9,12 +9,15 @@ List and update installed crates
 Usage: cargo list [OPTIONS]
 
 Options:
-  -f <FORMAT>      Output format [default: md] [possible values: json, json-pretty, md, rust, rust-pretty]
-  -k <KIND>        Kind(s) [default: external] [possible values: local, git, external]
+  -f <FORMAT>      Output format [default: md] [possible values: json,
+                   json-pretty, md, rust, rust-pretty]
+  -k <KIND>        Kind(s) [default: external] [possible values: local, git,
+                   external]
   -a               All kinds
   -o, --outdated   Hide up-to-date crates
-  -R               Consider a crate to be outdated if compiled with a Rust version different than the active
-                   toolchain
+  -I               Ignore version requirements
+  -R               Consider a crate to be outdated if compiled with a Rust
+                   version different than the active toolchain
   -u, --update     Update outdated crates
   -n, --dry-run    Dry run
   -c <PATH>        Cargo install metadata file [default: ~/.cargo/.crates2.json]
@@ -25,7 +28,7 @@ Options:
 
 ```text
 $ cargo list -V
-cargo-list 0.16.0
+cargo-list 0.17.0
 ```
 
 ### List installed external crates
@@ -52,10 +55,22 @@ cargo list -ou
 cargo list -oun
 ```
 
-### Update outdated external crates (include crates compiled with old Rust)
+### List outdated external crates (ignore version requirements)
 
 ```bash
-cargo list -ouR
+cargo list -oI
+```
+
+### List outdated external crates (include crates compiled with old Rust)
+
+```bash
+cargo list -oR
+```
+
+### Update outdated external crates (ignore version requirements and include crate compiled with old Rust)
+
+```bash
+cargo list -oIRu
 ```
 
 ### List crates installed via git
@@ -159,6 +174,8 @@ cargo list -f rust-pretty -o
 ```rust
 use cargo_list::Crates;
 use expanduser::expanduser;
+use rayon::prelude::*;
+use std::collections::BTreeMap;
 
 let path = expanduser("~/.cargo/.crates2.json").unwrap();
 
@@ -167,11 +184,14 @@ match Crates::from(&path) {
         if installed.is_empty() {
             println!("No crates installed!");
         } else {
-            let outdated = installed.outdated();
+            let all = installed.crates();
+            let outdated = all
+                .par_iter()
+                .filter_map(|(&name, &c)| c.outdated.then_some((name, c)))
+                .collect::<BTreeMap<_, _>>();
 
             if outdated.is_empty() {
                 // List all crates in CSV
-                let all = installed.all();
                 println!("Name,Installed");
                 for (name, c) in &all {
                     println!("{name},{}", c.installed);

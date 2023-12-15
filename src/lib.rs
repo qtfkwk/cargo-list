@@ -50,7 +50,10 @@ pub struct Crates {
     installs: BTreeMap<String, Crate>,
 
     #[serde(skip)]
-    pub current_rust: String,
+    pub active_toolchain: String,
+
+    #[serde(skip)]
+    pub active_version: String,
 }
 
 impl Crates {
@@ -64,11 +67,20 @@ impl Crates {
     */
     pub fn from(path: &Path) -> Result<Crates> {
         let mut crates: Crates = serde_json::from_reader(File::open(path)?)?;
-        crates.current_rust = active_rust();
+        crates.active_toolchain = active_toolchain();
+        crates.active_version = crates
+            .active_toolchain
+            .split('\n')
+            .nth(1)
+            .unwrap()
+            .split(' ')
+            .nth(1)
+            .unwrap()
+            .to_string();
         let errors = crates
             .installs
             .par_iter_mut()
-            .filter_map(|(k, v)| v.init(k, &crates.current_rust).err())
+            .filter_map(|(k, v)| v.init(k, &crates.active_version).err())
             .collect::<Vec<_>>();
         if errors.is_empty() {
             Ok(crates)
@@ -94,31 +106,9 @@ impl Crates {
     /**
     Return a view of all crates
     */
-    pub fn all(&self) -> BTreeMap<&str, &Crate> {
+    pub fn crates(&self) -> BTreeMap<&str, &Crate> {
         self.installs
             .values()
-            .map(|x| (x.name.as_str(), x))
-            .collect()
-    }
-
-    /**
-    Return a view of outdated crates
-    */
-    pub fn outdated(&self) -> BTreeMap<&str, &Crate> {
-        self.installs
-            .values()
-            .filter(|x| x.outdated)
-            .map(|x| (x.name.as_str(), x))
-            .collect()
-    }
-
-    /**
-    Return a view of external crates compiled with outdated Rust
-    */
-    pub fn outdated_rust(&self) -> BTreeMap<&str, &Crate> {
-        self.installs
-            .values()
-            .filter(|x| x.outdated_rust && x.kind == External)
             .map(|x| (x.name.as_str(), x))
             .collect()
     }
@@ -144,6 +134,9 @@ pub struct Crate {
     pub available: String,
 
     #[serde(skip_deserializing)]
+    pub newer: Vec<String>,
+
+    #[serde(skip_deserializing)]
     pub rust_version: String,
 
     #[serde(skip_deserializing)]
@@ -155,7 +148,7 @@ pub struct Crate {
     #[serde(skip_deserializing)]
     source: String,
 
-    version_req: Option<String>,
+    pub version_req: Option<String>,
     bins: Vec<String>,
     features: Vec<String>,
     all_features: bool,
@@ -169,7 +162,7 @@ impl Crate {
     /**
     Initialize additional fields after deserialization
     */
-    fn init(&mut self, k: &str, current_rust: &str) -> Result<()> {
+    fn init(&mut self, k: &str, active_version: &str) -> Result<()> {
         let mut s = k.split(' ');
         self.name = s.next().unwrap().to_string();
         self.installed = s.next().unwrap().to_string();
@@ -193,10 +186,10 @@ impl Crate {
             .0
             .to_string();
 
-        self.outdated_rust = self.rust_version != current_rust;
+        self.outdated_rust = self.rust_version != active_version;
 
         if self.kind == External {
-            self.available = latest(&self.name)?.unwrap_or_else(|| self.installed.clone());
+            (self.available, self.newer) = latest(&self.name, &self.version_req)?;
             self.outdated = self.installed != self.available;
         }
 
@@ -206,7 +199,7 @@ impl Crate {
     /**
     Generate the cargo install command to update the crate
     */
-    pub fn update_command(&self) -> Vec<String> {
+    pub fn update_command(&self, pinned: bool) -> Vec<String> {
         let mut r = vec!["cargo", "install"];
 
         if self.no_default_features {
@@ -223,6 +216,13 @@ impl Crate {
             r.push(features);
         }
 
+        if !pinned {
+            if let Some(version) = &self.version_req {
+                r.push("--version");
+                r.push(version);
+            }
+        }
+
         r.push("--profile");
         r.push(&self.profile);
 
@@ -237,49 +237,64 @@ impl Crate {
 
         r.into_iter().map(String::from).collect()
     }
-
-    /**
-    Update the crate
-    */
-    pub fn update(&self) {
-        Command::new("cargo")
-            .args(&self.update_command()[1..])
-            .spawn()
-            .unwrap()
-            .wait()
-            .unwrap();
-    }
 }
 
 //--------------------------------------------------------------------------------------------------
 
 /**
-Get the latest available version for a crate via `cargo search`
+Get the latest available version(s) for a crate, optionally matching a required version
 */
-pub fn latest(name: &str) -> Result<Option<String>> {
-    let result = std::str::from_utf8(
-        &Command::new("cargo")
-            .args(["search", "--limit", "1", name])
-            .output()?
-            .stdout,
-    )?
-    .to_string();
-    Ok(result.split('"').nth(1).and_then(|available| {
-        if ["alpha", "beta", "rc"]
-            .par_iter()
-            .any(|x| available.contains(x))
-        {
-            None
+pub fn latest(name: &str, version_req: &Option<String>) -> Result<(String, Vec<String>)> {
+    let client = reqwest::blocking::Client::builder()
+        .user_agent("cargo-list")
+        .build()?;
+    let url = format!("https://crates.io/api/v1/crates/{name}/versions");
+    let res = client.get(url).send()?;
+    let json = res.json::<serde_json::Value>()?;
+    if let Some(available) = json["versions"].as_array() {
+        let available = available
+            .iter()
+            .filter_map(|x| {
+                if let Some(version) = x["num"].as_str() {
+                    if let Ok(v) = semver::Version::parse(version) {
+                        if v.pre.is_empty() {
+                            Some(v)
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+        if let Some(req) = version_req {
+            let req = semver::VersionReq::parse(req)?;
+            let mut newer = vec![];
+            for v in &available {
+                if req.matches(v) {
+                    return Ok((v.to_string(), newer));
+                } else {
+                    newer.push(v.to_string());
+                }
+            }
+            Err(anyhow!(
+                "Failed to find an available version matching the requirement"
+            ))
         } else {
-            Some(available.to_string())
+            Ok((available[0].to_string(), vec![]))
         }
-    }))
+    } else {
+        Err(anyhow!("Failed to parse versions"))
+    }
 }
 
 /**
-Get the Rust version of the active toolchain
+Get the active toolchain
 */
-pub fn active_rust() -> String {
+pub fn active_toolchain() -> String {
     std::str::from_utf8(
         &Command::new("rustup")
             .args(["show", "active-toolchain", "-v"])
@@ -287,12 +302,6 @@ pub fn active_rust() -> String {
             .unwrap()
             .stdout,
     )
-    .unwrap()
-    .split('\n')
-    .nth(1)
-    .unwrap()
-    .split(' ')
-    .nth(1)
     .unwrap()
     .to_string()
 }

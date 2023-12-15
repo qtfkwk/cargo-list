@@ -1,6 +1,8 @@
 ```rust
 use cargo_list::Crates;
 # use expanduser::expanduser;
+# use rayon::prelude::*;
+# use std::collections::BTreeMap;
 # 
 # let path = expanduser("~/.cargo/.crates2.json").unwrap();
 
@@ -9,11 +11,14 @@ match Crates::from(&path) {
         if installed.is_empty() {
             println!("No crates installed!");
         } else {
-            let outdated = installed.outdated();
+            let all = installed.crates();
+            let outdated = all
+                .par_iter()
+                .filter_map(|(&name, &c)| c.outdated.then_some((name, c)))
+                .collect::<BTreeMap<_, _>>();
 
             if outdated.is_empty() {
                 // List all crates in CSV
-                let all = installed.all();
                 println!("Name,Installed");
                 for (name, c) in &all {
                     println!("{name},{}", c.installed);

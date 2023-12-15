@@ -41,6 +41,12 @@
   `Crates::crates` method to enable getting views of `all` or `outdated` crates
   separately; improve doc
 * 0.16.0 (2023-12-15): Add the `-R` and `-n` options; add CLI examples to readme
+* 0.17.0 (2023-12-15): Replace `Crates`' repetitive `all` and `outdated` methods
+  with a better `crates` method; display the active toolchain with `-R`; replace
+  the `Crate::update` method with a `run` function and halt if an update fails;
+  add the `-I` option; improve the `latest` function to process an optional
+  version requirement and use the REST API instead of the `cargo search` command
+  to get all available versions
 
 [`atty`]: https://crates.io/crates/atty
 [`bunt`]: https://crates.io/crates/bunt

@@ -36,10 +36,22 @@ cargo list -ou
 cargo list -oun
 ```
 
-### Update outdated external crates (include crates compiled with old Rust)
+### List outdated external crates (ignore version requirements)
 
 ```bash
-cargo list -ouR
+cargo list -oI
+```
+
+### List outdated external crates (include crates compiled with old Rust)
+
+```bash
+cargo list -oR
+```
+
+### Update outdated external crates (ignore version requirements and include crate compiled with old Rust)
+
+```bash
+cargo list -oIRu
 ```
 
 ### List crates installed via git
