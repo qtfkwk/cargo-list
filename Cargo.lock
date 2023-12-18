@@ -153,7 +153,7 @@ checksum = "a2bd12c1caf447e69cd4528f47f94d203fd2582878ecb9e9465484c4148a8223"
 
 [[package]]
 name = "cargo-list"
-version = "0.18.0"
+version = "0.18.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -1282,9 +1282,9 @@ checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 
 [[package]]
 name = "veg"
-version = "0.4.6"
+version = "0.4.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "971efe81c97912bf73fa0ca8f0beb1a37d5cd88128a138676168213c44251491"
+checksum = "884c2d89408eb6c59245ec45166f6c014538f87c17140771d92653775d909cf1"
 dependencies = [
  "anyhow",
  "colored",

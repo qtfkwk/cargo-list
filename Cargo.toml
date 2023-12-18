@@ -1,6 +1,6 @@
 [package]
 name = "cargo-list"
-version = "0.18.0"
+version = "0.18.1"
 edition = "2021"
 description = "List and update installed crates"
 repository = "https://github.com/qtfkwk/cargo-list"
@@ -19,7 +19,7 @@ reqwest = { version = "0.11.22", features = ["blocking", "json"] }
 semver = "1.0.20"
 serde = { version = "1.0.193", features = ["derive"] }
 serde_json = "1.0.108"
-veg = { version = "0.4.6", features = ["colored"] }
+veg = { version = "0.4.7", features = ["colored"] }
 
 [target.'cfg(unix)'.dependencies]
 pager = "0.16.1"

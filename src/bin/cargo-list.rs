@@ -328,7 +328,9 @@ fn main() -> Result<()> {
                 }
 
                 // Print the table
-                println!("{}", t.markdown()?);
+                if !t.is_empty() {
+                    println!("{}", t.markdown()?);
+                }
 
                 // Print a summary
                 if k == cargo_list::Kind::External {
