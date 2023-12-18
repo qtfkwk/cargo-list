@@ -47,6 +47,10 @@
   add the `-I` option; improve the `latest` function to process an optional
   version requirement and use the REST API instead of the `cargo search` command
   to get all available versions
+* 0.18.0 (2023-12-18): Replace markdown output lists with colorized tables using
+  [`veg`]; eliminate [`bunt`] and [`is-terminal`] dependencies and use
+  `veg::colored` re-exported [`colored`] `ColoredString` and `Colorized`
+  instead; update dependencies
 
 [`atty`]: https://crates.io/crates/atty
 [`bunt`]: https://crates.io/crates/bunt
@@ -56,6 +60,7 @@
 [`kapow`]: https://crates.io/crates/kapow
 [`mkrs`]: https://crates.io/crates/mkrs
 [`pager`]: https://crates.io/crates/pager
+[`veg`]: https://crates.io/crates/veg
 
 [`Makefile.md`]: Makefile.md
 

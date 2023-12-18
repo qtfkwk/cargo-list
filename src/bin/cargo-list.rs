@@ -1,12 +1,11 @@
 use anyhow::{anyhow, Result};
-use bunt::termcolor::ColorChoice;
 use cargo_list::Crates;
 use clap::{builder::TypedValueParser, Parser, ValueEnum};
 use expanduser::expanduser;
 use indexmap::IndexSet;
-use is_terminal::IsTerminal;
 use rayon::prelude::*;
 use std::collections::BTreeMap;
+use veg::colored::{ColoredString, Colorize, Veg};
 
 #[cfg(unix)]
 use pager::Pager;
@@ -139,6 +138,47 @@ impl std::str::FromStr for OutputFormat {
 
 //--------------------------------------------------------------------------------------------------
 
+#[derive(Debug)]
+struct Row {
+    name: ColoredString,
+    pinned: ColoredString,
+    installed: ColoredString,
+    available: ColoredString,
+    notes: ColoredString,
+}
+
+impl Row {
+    fn new(
+        name: ColoredString,
+        pinned: ColoredString,
+        installed: ColoredString,
+        available: ColoredString,
+        notes: ColoredString,
+    ) -> Box<Row> {
+        Box::new(Row {
+            name,
+            pinned,
+            installed,
+            available,
+            notes,
+        })
+    }
+}
+
+impl veg::colored::Table for Row {
+    fn row(&self) -> Vec<ColoredString> {
+        vec![
+            self.name.clone(),
+            self.pinned.clone(),
+            self.installed.clone(),
+            self.available.clone(),
+            self.notes.clone(),
+        ]
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+
 fn main() -> Result<()> {
     let Command::List(cli) = Command::parse();
 
@@ -192,14 +232,8 @@ fn main() -> Result<()> {
 
     match cli.output_format {
         Markdown => {
-            bunt::set_stdout_color_choice(if std::io::stdout().is_terminal() {
-                ColorChoice::Always
-            } else {
-                ColorChoice::Never
-            });
-
             if installed.is_empty() {
-                bunt::println!("{$yellow+italic}*No crates are installed.*{/$}\n");
+                println!("{}\n", "*No crates are installed.*".yellow().italic());
                 return Ok(());
             }
 
@@ -216,104 +250,122 @@ fn main() -> Result<()> {
 
             let mut ext = 0;
             for k in kinds {
-                bunt::println!("{$magenta+bold}# {:?}{/$}\n", k);
+                println!("{}\n", format!("# {k:?}").magenta().bold());
                 if k == cargo_list::Kind::External
                     && cli.outdated_rust
                     && (!cli.outdated || !outdated_rust.is_empty())
                 {
-                    bunt::println!(
+                    println!(
                         "\
                             Active toolchain:\n\n```text\n{}```\n\n\
-                            Active version: {[bold]}\n\
+                            Active version: {}\n\
                         ",
                         installed.active_toolchain,
-                        installed.active_version,
+                        installed.active_version.bold(),
                     );
                 }
                 let mut outdated = 0;
                 let mut update_pinned = 0;
-                let mut n = 0;
-                for c in all.values() {
-                    if c.kind == k {
-                        if k == cargo_list::Kind::External {
-                            let req = if let Some(req) = &c.version_req {
-                                if c.newer.is_empty() {
-                                    String::new()
-                                } else {
-                                    update_pinned += 1;
-                                    format!(" (Pinned: {req:?}; Available: {})", c.newer.join(", "))
-                                }
+                let mut t = Veg::table("Name|Pinned|Installed|Available|Notes\n-|-|-|-|-");
+                for c in all.values().filter(|x| x.kind == k) {
+                    if k == cargo_list::Kind::External {
+                        let (pinned, available) = if let Some(pinned) = &c.version_req {
+                            if c.newer.is_empty() {
+                                (String::new(), c.available.to_string())
                             } else {
-                                String::new()
-                            };
-                            if c.outdated {
-                                bunt::println!(
-                                    "* {}: {[red]} => {}{}",
-                                    c.name,
-                                    c.installed,
-                                    c.available,
-                                    req,
-                                );
-                                n += 1;
-                                outdated += 1;
-                            } else if cli.outdated_rust && c.outdated_rust {
-                                bunt::println!(
-                                    "* {}: {[green]} (Rust: {[red]}){}",
-                                    c.name,
-                                    c.installed,
-                                    c.rust_version,
-                                    req,
-                                );
-                                n += 1;
-                                outdated += 1;
-                            } else if cli.ignore_req && !c.newer.is_empty() {
-                                bunt::println!(
-                                    "* {}: {[red]} => {}",
-                                    c.name,
-                                    c.installed,
-                                    &c.newer[0],
-                                );
-                                n += 1;
-                                outdated += 1;
-                            } else if !cli.outdated {
-                                bunt::println!("* {}: {[green]}{}", c.name, c.installed, req);
-                                n += 1;
+                                update_pinned += 1;
+                                (pinned.clone(), c.newer.join(", "))
                             }
-                            ext += 1;
+                        } else {
+                            (String::new(), c.available.to_string())
+                        };
+                        if c.outdated {
+                            t.push(Row::new(
+                                c.name.normal(),
+                                pinned.normal(),
+                                c.installed.red(),
+                                available.normal(),
+                                "".normal(),
+                            ));
+                            outdated += 1;
+                        } else if cli.outdated_rust && c.outdated_rust {
+                            t.push(Row::new(
+                                c.name.normal(),
+                                pinned.normal(),
+                                c.installed.green(),
+                                "".normal(),
+                                ColoredString::from(format!("Rust: {}", c.rust_version.red())),
+                            ));
+                            outdated += 1;
+                        } else if cli.ignore_req && !c.newer.is_empty() {
+                            t.push(Row::new(
+                                c.name.normal(),
+                                pinned.normal(),
+                                c.installed.red(),
+                                c.newer[0].normal(),
+                                "".normal(),
+                            ));
+                            outdated += 1;
                         } else if !cli.outdated {
-                            bunt::println!("* {}: {[cyan]}", c.name, c.installed);
-                            n += 1;
+                            t.push(Row::new(
+                                c.name.normal(),
+                                pinned.normal(),
+                                c.installed.green(),
+                                "".normal(),
+                                "".normal(),
+                            ));
                         }
+                        ext += 1;
+                    } else if !cli.outdated {
+                        t.push(Row::new(
+                            c.name.normal(),
+                            "".normal(),
+                            c.installed.cyan(),
+                            "".normal(),
+                            "".normal(),
+                        ));
                     }
                 }
-                if n > 0 {
-                    println!();
-                }
+
+                // Print the table
+                println!("{}", t.markdown()?);
 
                 // Print a summary
                 if k == cargo_list::Kind::External {
                     if outdated == 0 {
-                        bunt::println!(
-                            "{$green+bold}**All {} external crate{} are up-to-date!**{/$}\n",
-                            ext,
-                            if ext == 1 { "" } else { "s" },
+                        println!(
+                            "{}\n",
+                            format!(
+                                "**All {} external crate{} are up-to-date!**",
+                                ext,
+                                if ext == 1 { "" } else { "s" },
+                            )
+                            .green()
+                            .bold(),
                         );
                     } else {
-                        bunt::println!(
-                            "{$red+bold}**Need to update {} external crate{}!**{/$}\n",
-                            outdated,
-                            if outdated == 1 { "" } else { "s" },
+                        println!(
+                            "{}\n",
+                            format!(
+                                "**Need to update {} external crate{}!**",
+                                outdated,
+                                if outdated == 1 { "" } else { "s" }
+                            )
+                            .red()
+                            .bold(),
                         );
                     }
 
                     if !cli.ignore_req && update_pinned > 0 {
-                        bunt::println!(
-                            "\
-                                {$yellow+italic}*Consider updating {} pinned external crate{} via \
-                                `-I`.*{/$}\n\
-                            ",
-                            update_pinned,
-                            if update_pinned == 1 { "" } else { "s" },
+                        println!(
+                            "{}\n",
+                            format!(
+                                "*Consider updating {} pinned external crate{} via `-I`.*",
+                                update_pinned,
+                                if update_pinned == 1 { "" } else { "s" },
+                            )
+                            .yellow()
+                            .italic(),
                         );
                     }
                 }
@@ -338,9 +390,9 @@ fn main() -> Result<()> {
                         let command =
                             c.update_command(cli.ignore_req && outdated_pinned.contains_key(name));
                         if cli.dry_run {
-                            bunt::println!("```bash\n{$bold}{}{/$}", command.join(" "));
+                            println!("```bash\n{}", command.join(" ").bold());
                         } else {
-                            bunt::println!("```text\n$ {$bold}{}{/$}", command.join(" "));
+                            println!("```text\n{}", command.join(" ").bold());
                             run(&command)?;
                         }
                         println!("```\n");
@@ -348,20 +400,27 @@ fn main() -> Result<()> {
 
                     // Print summary
                     if !cli.dry_run {
-                        bunt::println!(
-                            "{$green+italic}*All {} external crate{} are up-to-date!*{/$}\n",
-                            ext,
-                            if ext == 1 { "" } else { "s" },
+                        println!(
+                            "{}\n",
+                            format!(
+                                "*All {} external crate{} are up-to-date!*",
+                                ext,
+                                if ext == 1 { "" } else { "s" }
+                            )
+                            .green()
+                            .italic(),
                         );
                     }
                     if !cli.ignore_req && update_pinned > 0 {
-                        bunt::println!(
-                            "\
-                                {$yellow+italic}*Consider updating {} pinned external crate{} via \
-                                `-I`.*{/$}\n\
-                            ",
-                            update_pinned,
-                            if update_pinned == 1 { "" } else { "s" },
+                        println!(
+                            "{}\n",
+                            format!(
+                                "*Consider updating {} pinned external crate{} via `-I`.*",
+                                update_pinned,
+                                if update_pinned == 1 { "" } else { "s" }
+                            )
+                            .yellow()
+                            .italic(),
                         );
                     }
                 }
