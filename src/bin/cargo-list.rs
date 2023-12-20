@@ -4,6 +4,7 @@ use clap::{builder::TypedValueParser, Parser, ValueEnum};
 use expanduser::expanduser;
 use indexmap::IndexSet;
 use rayon::prelude::*;
+use spinners::{Spinner, Spinners};
 use std::collections::BTreeMap;
 use veg::colored::{ColoredString, Colorize, Veg};
 
@@ -190,7 +191,10 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
+    let mut sp = Spinner::new(Spinners::Line, "".into());
     let installed = Crates::from(&expanduser(&cli.config)?)?;
+    sp.stop();
+    print!("\x1b[2K\r");
 
     let all = installed.crates();
 
