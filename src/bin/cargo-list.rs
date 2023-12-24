@@ -1,10 +1,11 @@
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use cargo_list::Crates;
 use clap::{builder::TypedValueParser, Parser, ValueEnum};
 use expanduser::expanduser;
 use indexmap::IndexSet;
 use rayon::prelude::*;
 use spinners::{Spinner, Spinners};
+use sprint::Shell;
 use std::collections::BTreeMap;
 use veg::colored::{ColoredString, Colorize, Veg};
 
@@ -392,16 +393,15 @@ fn main() -> Result<()> {
                     update_pinned += outdated_pinned.len();
                 }
                 if !updates.is_empty() {
+                    let shell = Shell::default();
                     for (name, c) in &updates {
-                        let command =
-                            c.update_command(cli.ignore_req && outdated_pinned.contains_key(name));
-                        if cli.dry_run {
-                            println!("```bash\n{}", command.join(" ").bold());
-                        } else {
-                            println!("```text\n{}", command.join(" ").bold());
-                            run(&command)?;
-                        }
-                        println!("```\n");
+                        shell
+                            .run(&[&c
+                                .update_command(
+                                    cli.ignore_req && outdated_pinned.contains_key(name),
+                                )
+                                .join(" ")])
+                            .unwrap();
                     }
 
                     // Print summary
@@ -459,24 +459,4 @@ fn main() -> Result<()> {
     }
 
     Ok(())
-}
-
-//--------------------------------------------------------------------------------------------------
-
-/**
-Run a command
-*/
-pub fn run(command: &[String]) -> Result<()> {
-    if std::process::Command::new(&command[0])
-        .args(&command[1..])
-        .spawn()
-        .unwrap()
-        .wait()
-        .unwrap()
-        .success()
-    {
-        Ok(())
-    } else {
-        Err(anyhow!("Command failed!"))
-    }
 }
