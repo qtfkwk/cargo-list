@@ -54,6 +54,7 @@
     * 0.18.1 (2023-12-18): Don't print an empty table; update dependencies
 * 0.19.0 (2023-12-19): Add spinner; update dependencies
 * 0.20.0 (2023-12-24): Use sprint shell; update dependencies
+    * 0.20.1 (2023-12-24): Update dependencies
 
 [`atty`]: https://crates.io/crates/atty
 [`bunt`]: https://crates.io/crates/bunt
