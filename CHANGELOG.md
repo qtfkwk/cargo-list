@@ -55,6 +55,7 @@
 * 0.19.0 (2023-12-19): Add spinner; update dependencies
 * 0.20.0 (2023-12-24): Use sprint shell; update dependencies
     * 0.20.1 (2023-12-24): Update dependencies
+    * 0.20.2 (2023-12-26): Update dependencies
 
 [`atty`]: https://crates.io/crates/atty
 [`bunt`]: https://crates.io/crates/bunt

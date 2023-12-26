@@ -5,7 +5,7 @@ use expanduser::expanduser;
 use indexmap::IndexSet;
 use rayon::prelude::*;
 use spinners::{Spinner, Spinners};
-use sprint::Shell;
+use sprint::*;
 use std::collections::BTreeMap;
 use veg::colored::{ColoredString, Colorize, Veg};
 
@@ -39,14 +39,14 @@ impl Kind {
 #[derive(Parser)]
 #[command(name = "cargo")]
 #[command(bin_name = "cargo")]
-enum Command {
+enum Cli {
     /// List and update installed crates
-    List(Cli),
+    List(List),
 }
 
 #[derive(clap::Args)]
 #[command(version, long_about = None, max_term_width = 80)]
-struct Cli {
+struct List {
     /// Output format
     #[arg(
         short = 'f',
@@ -182,7 +182,7 @@ impl veg::colored::Table for Row {
 //--------------------------------------------------------------------------------------------------
 
 fn main() -> Result<()> {
-    let Command::List(cli) = Command::parse();
+    let Cli::List(cli) = Cli::parse();
 
     if cli.readme {
         #[cfg(unix)]
@@ -393,15 +393,22 @@ fn main() -> Result<()> {
                     update_pinned += outdated_pinned.len();
                 }
                 if !updates.is_empty() {
-                    let shell = Shell::default();
-                    for (name, c) in &updates {
-                        shell
-                            .run(&[&c
+                    let mut shell = Shell {
+                        dry_run: cli.dry_run,
+                        ..Default::default()
+                    };
+                    if cli.dry_run {
+                        shell.info = String::from("bash");
+                    }
+                    for (name, c) in updates {
+                        shell.run(&[Command {
+                            command: c
                                 .update_command(
                                     cli.ignore_req && outdated_pinned.contains_key(name),
                                 )
-                                .join(" ")])
-                            .unwrap();
+                                .join(" "),
+                            ..Default::default()
+                        }]);
                     }
 
                     // Print summary

@@ -5,7 +5,7 @@
 use anyhow::{anyhow, Result};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use sprint::Shell;
+use sprint::*;
 use std::{collections::BTreeMap, fs::File, path::Path};
 
 //--------------------------------------------------------------------------------------------------
@@ -296,7 +296,18 @@ pub fn latest(name: &str, version_req: &Option<String>) -> Result<(String, Vec<S
 Get the active toolchain
 */
 pub fn active_toolchain() -> String {
-    Shell::default()
-        .pipe_with1("rustup show active-toolchain -v", None)
-        .0
+    let r = Shell {
+        print: false,
+        ..Default::default()
+    }
+    .run(&[Command {
+        command: String::from("rustup show active-toolchain -v"),
+        stdout: Some(Pipe::string()),
+        ..Default::default()
+    }]);
+    if let Some(Pipe::String(s)) = &r[0].stdout {
+        s.to_string()
+    } else {
+        String::new()
+    }
 }
