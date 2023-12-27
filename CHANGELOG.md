@@ -53,9 +53,10 @@
   instead; update dependencies
     * 0.18.1 (2023-12-18): Don't print an empty table; update dependencies
 * 0.19.0 (2023-12-19): Add spinner; update dependencies
-* 0.20.0 (2023-12-24): Use sprint shell; update dependencies
+* 0.20.0 (2023-12-24): Use [`sprint`] shell; update dependencies
     * 0.20.1 (2023-12-24): Update dependencies
     * 0.20.2 (2023-12-26): Update dependencies
+    * 0.20.3 (2023-12-27): Update dependencies
 
 [`atty`]: https://crates.io/crates/atty
 [`bunt`]: https://crates.io/crates/bunt
@@ -65,6 +66,7 @@
 [`kapow`]: https://crates.io/crates/kapow
 [`mkrs`]: https://crates.io/crates/mkrs
 [`pager`]: https://crates.io/crates/pager
+[`sprint`]: https://crates.io/crates/sprint
 [`veg`]: https://crates.io/crates/veg
 
 [`Makefile.md`]: Makefile.md
