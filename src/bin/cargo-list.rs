@@ -195,7 +195,7 @@ fn main() -> Result<()> {
     let mut sp = Spinner::new(Spinners::Line, "".into());
     let installed = Crates::from(&expanduser(&cli.config)?)?;
     sp.stop();
-    print!("\x1b[2K\r");
+    eprint!("\x1b[2K\r");
 
     let all = installed.crates();
 

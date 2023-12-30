@@ -302,10 +302,10 @@ pub fn active_toolchain() -> String {
     }
     .run(&[Command {
         command: String::from("rustup show active-toolchain -v"),
-        stdout: Some(Pipe::string()),
+        stdout: Pipe::string(),
         ..Default::default()
     }]);
-    if let Some(Pipe::String(s)) = &r[0].stdout {
+    if let Pipe::String(Some(s)) = &r[0].stdout {
         s.to_string()
     } else {
         String::new()
