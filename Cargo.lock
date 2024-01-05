@@ -175,7 +175,7 @@ checksum = "a2bd12c1caf447e69cd4528f47f94d203fd2582878ecb9e9465484c4148a8223"
 
 [[package]]
 name = "cargo-list"
-version = "0.20.5"
+version = "0.20.6"
 dependencies = [
  "anyhow",
  "clap",
@@ -1108,9 +1108,9 @@ dependencies = [
 
 [[package]]
 name = "sprint"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4a4b54f96ac5dd76989f64401612d5867f16d3a05a78f024e36c4b9448e278f"
+checksum = "c68ef92f7015987ac77d3903b925b843b5ceb456d2e06c8e082755e122b234d0"
 dependencies = [
  "anyhow",
  "bunt",
