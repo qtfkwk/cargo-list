@@ -142,6 +142,7 @@ impl std::str::FromStr for OutputFormat {
 
 #[derive(Debug)]
 struct Row {
+    number: ColoredString,
     name: ColoredString,
     pinned: ColoredString,
     installed: ColoredString,
@@ -151,6 +152,7 @@ struct Row {
 
 impl Row {
     fn new(
+        number: ColoredString,
         name: ColoredString,
         pinned: ColoredString,
         installed: ColoredString,
@@ -158,6 +160,7 @@ impl Row {
         notes: ColoredString,
     ) -> Box<Row> {
         Box::new(Row {
+            number,
             name,
             pinned,
             installed,
@@ -170,6 +173,7 @@ impl Row {
 impl veg::colored::Table for Row {
     fn row(&self) -> Vec<ColoredString> {
         vec![
+            self.number.clone(),
             self.name.clone(),
             self.pinned.clone(),
             self.installed.clone(),
@@ -271,7 +275,8 @@ fn main() -> Result<()> {
                 }
                 let mut outdated = 0;
                 let mut update_pinned = 0;
-                let mut t = Veg::table("Name|Pinned|Installed|Available|Notes\n-|-|-|-|-");
+                let mut number = 1;
+                let mut t = Veg::table("#|Name|Pinned|Installed|Available|Notes\n-:|-|-|-|-|-");
                 for c in all.values().filter(|x| x.kind == k) {
                     if k == cargo_list::Kind::External {
                         let (pinned, available) = if let Some(pinned) = &c.version_req {
@@ -284,51 +289,77 @@ fn main() -> Result<()> {
                         } else {
                             (String::new(), c.available.to_string())
                         };
+
                         if c.outdated {
                             t.push(Row::new(
+                                number.to_string().normal(),
                                 c.name.normal(),
                                 pinned.normal(),
                                 c.installed.red(),
                                 available.normal(),
                                 "".normal(),
                             ));
+                            number += 1;
                             outdated += 1;
-                        } else if cli.outdated_rust && c.outdated_rust {
-                            t.push(Row::new(
-                                c.name.normal(),
-                                pinned.normal(),
-                                c.installed.green(),
-                                "".normal(),
-                                ColoredString::from(format!("Rust: {}", c.rust_version.red())),
-                            ));
-                            outdated += 1;
+                        } else if cli.outdated_rust {
+                            if c.outdated_rust {
+                                t.push(Row::new(
+                                    number.to_string().normal(),
+                                    c.name.normal(),
+                                    pinned.normal(),
+                                    c.installed.green(),
+                                    "".normal(),
+                                    ColoredString::from(format!("Rust: {}", c.rust_version.red())),
+                                ));
+                                number += 1;
+                                outdated += 1;
+                            } else if !cli.outdated {
+                                t.push(Row::new(
+                                    number.to_string().normal(),
+                                    c.name.normal(),
+                                    pinned.normal(),
+                                    c.installed.green(),
+                                    "".normal(),
+                                    ColoredString::from(format!(
+                                        "Rust: {}",
+                                        c.rust_version.green()
+                                    )),
+                                ));
+                                number += 1;
+                            }
                         } else if cli.ignore_req && !c.newer.is_empty() {
                             t.push(Row::new(
+                                number.to_string().normal(),
                                 c.name.normal(),
                                 pinned.normal(),
                                 c.installed.red(),
                                 c.newer[0].normal(),
                                 "".normal(),
                             ));
+                            number += 1;
                             outdated += 1;
                         } else if !cli.outdated {
                             t.push(Row::new(
+                                number.to_string().normal(),
                                 c.name.normal(),
                                 pinned.normal(),
                                 c.installed.green(),
                                 "".normal(),
                                 "".normal(),
                             ));
+                            number += 1;
                         }
                         ext += 1;
                     } else if !cli.outdated {
                         t.push(Row::new(
+                            number.to_string().normal(),
                             c.name.normal(),
                             "".normal(),
                             c.installed.cyan(),
                             "".normal(),
                             "".normal(),
                         ));
+                        number += 1;
                     }
                 }
 
@@ -342,13 +373,7 @@ fn main() -> Result<()> {
                     if outdated == 0 {
                         println!(
                             "{}\n",
-                            format!(
-                                "**All {} external crate{} are up-to-date!**",
-                                ext,
-                                if ext == 1 { "" } else { "s" },
-                            )
-                            .green()
-                            .bold(),
+                            "**All external crates are up-to-date!**".green().bold(),
                         );
                     } else {
                         println!(

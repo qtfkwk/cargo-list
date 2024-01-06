@@ -60,6 +60,7 @@
     * 0.20.4 (2023-12-30): Fix spinner clear; update dependencies
     * 0.20.5 (2024-01-05): Update dependencies
     * 0.20.6 (2024-01-05): Update dependencies
+* 0.21.0 (2024-01-06): Number rows; update dependencies
 
 [`atty`]: https://crates.io/crates/atty
 [`bunt`]: https://crates.io/crates/bunt
