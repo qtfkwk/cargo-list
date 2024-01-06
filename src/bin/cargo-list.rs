@@ -294,7 +294,11 @@ fn main() -> Result<()> {
                                 pinned.normal(),
                                 c.installed.red(),
                                 available.normal(),
-                                "".normal(),
+                                if c.outdated_rust {
+                                    c.rust_version.red()
+                                } else {
+                                    c.rust_version.green()
+                                },
                                 cli.outdated_rust,
                             ));
                             number += 1;

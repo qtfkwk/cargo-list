@@ -63,6 +63,7 @@
 * 0.21.0 (2024-01-06): Number rows; update dependencies
 * 0.22.0 (2024-01-06): Replace notes column with optional rust version column
   via `-R`
+    * 0.22.1 (2024-01-06): Fix missing rust version if outdated
 
 [`atty`]: https://crates.io/crates/atty
 [`bunt`]: https://crates.io/crates/bunt
