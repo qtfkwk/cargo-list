@@ -147,7 +147,8 @@ struct Row {
     pinned: ColoredString,
     installed: ColoredString,
     available: ColoredString,
-    notes: ColoredString,
+    rust: ColoredString,
+    outdated_rust: bool,
 }
 
 impl Row {
@@ -157,7 +158,8 @@ impl Row {
         pinned: ColoredString,
         installed: ColoredString,
         available: ColoredString,
-        notes: ColoredString,
+        rust: ColoredString,
+        outdated_rust: bool,
     ) -> Box<Row> {
         Box::new(Row {
             number,
@@ -165,21 +167,25 @@ impl Row {
             pinned,
             installed,
             available,
-            notes,
+            rust,
+            outdated_rust,
         })
     }
 }
 
 impl veg::colored::Table for Row {
     fn row(&self) -> Vec<ColoredString> {
-        vec![
+        let mut r = vec![
             self.number.clone(),
             self.name.clone(),
             self.pinned.clone(),
             self.installed.clone(),
             self.available.clone(),
-            self.notes.clone(),
-        ]
+        ];
+        if self.outdated_rust {
+            r.push(self.rust.clone());
+        }
+        r
     }
 }
 
@@ -260,23 +266,14 @@ fn main() -> Result<()> {
             let mut ext = 0;
             for k in kinds {
                 println!("{}\n", format!("# {k:?}").magenta().bold());
-                if k == cargo_list::Kind::External
-                    && cli.outdated_rust
-                    && (!cli.outdated || !outdated_rust.is_empty())
-                {
-                    println!(
-                        "\
-                            Active toolchain:\n\n```text\n{}```\n\n\
-                            Active version: {}\n\
-                        ",
-                        installed.active_toolchain,
-                        installed.active_version.bold(),
-                    );
-                }
                 let mut outdated = 0;
                 let mut update_pinned = 0;
                 let mut number = 1;
-                let mut t = Veg::table("#|Name|Pinned|Installed|Available|Notes\n-:|-|-|-|-|-");
+                let mut t = if cli.outdated_rust {
+                    Veg::table("#|Name|Pinned|Installed|Available|Rust\n-:|-|-|-|-|-")
+                } else {
+                    Veg::table("#|Name|Pinned|Installed|Available\n-:|-|-|-|-")
+                };
                 for c in all.values().filter(|x| x.kind == k) {
                     if k == cargo_list::Kind::External {
                         let (pinned, available) = if let Some(pinned) = &c.version_req {
@@ -298,6 +295,7 @@ fn main() -> Result<()> {
                                 c.installed.red(),
                                 available.normal(),
                                 "".normal(),
+                                cli.outdated_rust,
                             ));
                             number += 1;
                             outdated += 1;
@@ -309,7 +307,8 @@ fn main() -> Result<()> {
                                     pinned.normal(),
                                     c.installed.green(),
                                     "".normal(),
-                                    ColoredString::from(format!("Rust: {}", c.rust_version.red())),
+                                    c.rust_version.red(),
+                                    cli.outdated_rust,
                                 ));
                                 number += 1;
                                 outdated += 1;
@@ -320,10 +319,8 @@ fn main() -> Result<()> {
                                     pinned.normal(),
                                     c.installed.green(),
                                     "".normal(),
-                                    ColoredString::from(format!(
-                                        "Rust: {}",
-                                        c.rust_version.green()
-                                    )),
+                                    c.rust_version.green(),
+                                    cli.outdated_rust,
                                 ));
                                 number += 1;
                             }
@@ -335,6 +332,7 @@ fn main() -> Result<()> {
                                 c.installed.red(),
                                 c.newer[0].normal(),
                                 "".normal(),
+                                cli.outdated_rust,
                             ));
                             number += 1;
                             outdated += 1;
@@ -346,6 +344,7 @@ fn main() -> Result<()> {
                                 c.installed.green(),
                                 "".normal(),
                                 "".normal(),
+                                cli.outdated_rust,
                             ));
                             number += 1;
                         }
@@ -358,6 +357,7 @@ fn main() -> Result<()> {
                             c.installed.cyan(),
                             "".normal(),
                             "".normal(),
+                            cli.outdated_rust,
                         ));
                         number += 1;
                     }
