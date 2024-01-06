@@ -64,6 +64,7 @@
 * 0.22.0 (2024-01-06): Replace notes column with optional rust version column
   via `-R`
     * 0.22.1 (2024-01-06): Fix missing rust version if outdated
+* 0.23.0 (2024-01-06): Add level 2 heading for each crate updated
 
 [`atty`]: https://crates.io/crates/atty
 [`bunt`]: https://crates.io/crates/bunt

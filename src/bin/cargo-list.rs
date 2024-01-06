@@ -293,7 +293,7 @@ fn main() -> Result<()> {
                                 c.name.normal(),
                                 pinned.normal(),
                                 c.installed.red(),
-                                available.normal(),
+                                available.bold(),
                                 if c.outdated_rust {
                                     c.rust_version.red()
                                 } else {
@@ -334,7 +334,7 @@ fn main() -> Result<()> {
                                 c.name.normal(),
                                 pinned.normal(),
                                 c.installed.red(),
-                                c.newer[0].normal(),
+                                c.newer[0].bold(),
                                 "".normal(),
                                 cli.outdated_rust,
                             ));
@@ -430,6 +430,7 @@ fn main() -> Result<()> {
                         shell.info = String::from("bash");
                     }
                     for (name, c) in updates {
+                        println!("{}\n", format!("## {name:?}").yellow().bold());
                         shell.run(&[Command {
                             command: c
                                 .update_command(
