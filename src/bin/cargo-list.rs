@@ -263,7 +263,6 @@ fn main() -> Result<()> {
                     .collect::<Vec<_>>()
             };
 
-            let mut ext = 0;
             for k in kinds {
                 println!("{}\n", format!("# {k:?}").magenta().bold());
                 let mut outdated = 0;
@@ -352,7 +351,6 @@ fn main() -> Result<()> {
                             ));
                             number += 1;
                         }
-                        ext += 1;
                     } else if !cli.outdated {
                         t.push(Row::new(
                             number.to_string().normal(),
@@ -445,13 +443,7 @@ fn main() -> Result<()> {
                     if !cli.dry_run {
                         println!(
                             "{}\n",
-                            format!(
-                                "*All {} external crate{} are up-to-date!*",
-                                ext,
-                                if ext == 1 { "" } else { "s" }
-                            )
-                            .green()
-                            .italic(),
+                            "**All external crates are up-to-date!**".green().bold(),
                         );
                     }
                     if !cli.ignore_req && update_pinned > 0 {
