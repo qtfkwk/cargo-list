@@ -18,6 +18,30 @@ $ cargo list -V
 cargo list
 ```
 
+### List installed external crates containing `cargo`
+
+```bash
+cargo list cargo
+```
+
+### List installed external crates beginning with `cargo`
+
+```bash
+cargo list ^cargo
+```
+
+### List installed external crates ending with `list`
+
+```bash
+cargo list 'list$'
+```
+
+### List installed external crates matching `cargo-list`
+
+```bash
+cargo list '^cargo-list$'
+```
+
 ### List outdated external crates
 
 ```bash

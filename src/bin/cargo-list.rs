@@ -95,6 +95,10 @@ struct List {
     /// Print readme
     #[arg(short, long)]
     readme: bool,
+
+    /// List/update crates matching given pattern(s)
+    #[arg(value_name = "PATTERN")]
+    include: Vec<String>,
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -203,7 +207,10 @@ fn main() -> Result<()> {
     }
 
     let mut sp = Spinner::new(Spinners::Line, "".into());
-    let installed = Crates::from(&expanduser(&cli.config)?)?;
+    let installed = Crates::from_include(
+        &expanduser(&cli.config)?,
+        &cli.include.iter().map(|x| x.as_str()).collect::<Vec<_>>(),
+    )?;
     sp.stop();
     eprint!("\x1b[2K\r");
 
@@ -248,8 +255,18 @@ fn main() -> Result<()> {
     match cli.output_format {
         Markdown => {
             if installed.is_empty() {
-                println!("{}\n", "*No crates are installed.*".yellow().italic());
-                return Ok(());
+                if cli.include.is_empty() {
+                    println!("{}\n", "*No crates are installed.*".yellow().italic());
+                    std::process::exit(1);
+                } else {
+                    println!(
+                        "{}\n",
+                        "*No crates matching given pattern(s) are installed.*"
+                            .yellow()
+                            .italic()
+                    );
+                    std::process::exit(2);
+                }
             }
 
             let kinds = if cli.all_kinds {

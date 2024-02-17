@@ -30,7 +30,7 @@ cargo clippy -- -D clippy::all
 # test
 
 ```
-cargo test it_works -- --nocapture
+cargo test crates_from -- --nocapture
 ```
 
 # doc

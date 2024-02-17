@@ -66,6 +66,8 @@
     * 0.22.1 (2024-01-06): Fix missing rust version if outdated
 * 0.23.0 (2024-01-06): Add level 2 heading for each crate updated
     * 0.23.1 (2024-01-24): Fix message after updating; update dependencies
+* 0.24.0 (2024-02-17): Add pattern match include feature and
+  `Crates::from_include` method via [`regex`]; update dependencies
 
 [`atty`]: https://crates.io/crates/atty
 [`bunt`]: https://crates.io/crates/bunt
@@ -75,6 +77,7 @@
 [`kapow`]: https://crates.io/crates/kapow
 [`mkrs`]: https://crates.io/crates/mkrs
 [`pager`]: https://crates.io/crates/pager
+[`regex`]: https://crates.io/crates/regex
 [`sprint`]: https://crates.io/crates/sprint
 [`veg`]: https://crates.io/crates/veg
 

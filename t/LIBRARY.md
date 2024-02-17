@@ -48,3 +48,9 @@ match Crates::from(&path) {
     }
 }
 ```
+
+If you want to include just a subset of the crates, instead of `Crates::from(&path)`, use
+`Crates::from_include(&path, &patterns)` where `patterns` is a slice of `&str` [`regex`] patterns.
+
+[`regex`]: https://crates.io/crates/regex
+

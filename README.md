@@ -6,7 +6,10 @@
 $ cargo list -h
 List and update installed crates
 
-Usage: cargo list [OPTIONS]
+Usage: cargo list [OPTIONS] [PATTERN]...
+
+Arguments:
+  [PATTERN]...  List/update crates matching given pattern(s)
 
 Options:
   -f <FORMAT>      Output format [default: md] [possible values: json,
@@ -28,13 +31,37 @@ Options:
 
 ```text
 $ cargo list -V
-cargo-list 0.23.1
+cargo-list 0.24.0
 ```
 
 ### List installed external crates
 
 ```bash
 cargo list
+```
+
+### List installed external crates containing `cargo`
+
+```bash
+cargo list cargo
+```
+
+### List installed external crates beginning with `cargo`
+
+```bash
+cargo list ^cargo
+```
+
+### List installed external crates ending with `list`
+
+```bash
+cargo list 'list$'
+```
+
+### List installed external crates matching `cargo-list`
+
+```bash
+cargo list '^cargo-list$'
 ```
 
 ### List outdated external crates
@@ -221,6 +248,12 @@ match Crates::from(&path) {
     }
 }
 ```
+
+If you want to include just a subset of the crates, instead of `Crates::from(&path)`, use
+`Crates::from_include(&path, &patterns)` where `patterns` is a slice of `&str` [`regex`] patterns.
+
+[`regex`]: https://crates.io/crates/regex
+
 
 # Changelog
 

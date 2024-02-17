@@ -4,6 +4,7 @@
 
 use anyhow::{anyhow, Result};
 use rayon::prelude::*;
+use regex::RegexSet;
 use serde::{Deserialize, Serialize};
 use sprint::*;
 use std::{collections::BTreeMap, fs::File, path::Path};
@@ -67,7 +68,46 @@ impl Crates {
     * Determine the crate type
     */
     pub fn from(path: &Path) -> Result<Crates> {
+        Crates::from_include(path, &[])
+    }
+
+    /**
+    Return true if no crates are installed
+    */
+    pub fn is_empty(&self) -> bool {
+        self.installs.is_empty()
+    }
+
+    /**
+    Return a view of all crates
+    */
+    pub fn crates(&self) -> BTreeMap<&str, &Crate> {
+        self.installs
+            .values()
+            .map(|x| (x.name.as_str(), x))
+            .collect()
+    }
+
+    /**
+    Like the [`Crates::from`] method, but accepts zero or more include patterns to match against
+    crate names
+    */
+    pub fn from_include(path: &Path, patterns: &[&str]) -> Result<Crates> {
         let mut crates: Crates = serde_json::from_reader(File::open(path)?)?;
+        if !patterns.is_empty() {
+            let set = RegexSet::new(patterns).unwrap();
+            crates.installs = crates
+                .installs
+                .into_par_iter()
+                .filter_map(|(k, v)| {
+                    if set.is_match(k.split_once(' ').unwrap().0) {
+                        Some((k, v))
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+        }
         crates.active_toolchain = active_toolchain();
         crates.active_version = crates
             .active_toolchain
@@ -95,23 +135,6 @@ impl Crates {
                     .join(", ")
             )))
         }
-    }
-
-    /**
-    Return true if no crates are installed
-    */
-    pub fn is_empty(&self) -> bool {
-        self.installs.is_empty()
-    }
-
-    /**
-    Return a view of all crates
-    */
-    pub fn crates(&self) -> BTreeMap<&str, &Crate> {
-        self.installs
-            .values()
-            .map(|x| (x.name.as_str(), x))
-            .collect()
     }
 }
 
