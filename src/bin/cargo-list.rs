@@ -44,7 +44,7 @@ enum Cli {
     List(List),
 }
 
-#[derive(clap::Args)]
+#[derive(clap::Args, Clone)]
 #[command(version, long_about = None, max_term_width = 80)]
 struct List {
     /// Output format
@@ -206,6 +206,10 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
+    inner(&cli)
+}
+
+fn inner(cli: &List) -> Result<()> {
     let mut sp = Spinner::new(Spinners::Line, "".into());
     let installed = Crates::from_include(
         &expanduser(&cli.config)?,
@@ -444,7 +448,7 @@ fn main() -> Result<()> {
                     if cli.dry_run {
                         shell.info = String::from("bash");
                     }
-                    for (name, c) in updates {
+                    for (name, c) in &updates {
                         println!("{}\n", format!("## {name:?}").yellow().bold());
                         shell.run(&[Command {
                             command: c
@@ -457,12 +461,11 @@ fn main() -> Result<()> {
                     }
 
                     // Print summary
-                    if !cli.dry_run {
-                        println!(
-                            "{}\n",
-                            "**All external crates are up-to-date!**".green().bold(),
-                        );
-                    }
+                    let mut c = cli.clone();
+                    c.update = false;
+                    c.outdated = false;
+                    c.include = updates.keys().map(|x| x.to_string()).collect();
+                    inner(&c)?;
                     if !cli.ignore_req && update_pinned > 0 {
                         println!(
                             "{}\n",

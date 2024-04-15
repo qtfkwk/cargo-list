@@ -69,6 +69,8 @@
 * 0.24.0 (2024-02-17): Add pattern match include feature and
   `Crates::from_include` method via [`regex`]; update dependencies
     * 0.24.1 (2024-03-11): Update dependencies
+* 0.25.0 (2024-04-14): Print a better summary after updating; update
+  dependencies
 
 [`atty`]: https://crates.io/crates/atty
 [`bunt`]: https://crates.io/crates/bunt
