@@ -71,6 +71,7 @@
     * 0.24.1 (2024-03-11): Update dependencies
 * 0.25.0 (2024-04-14): Print a better summary after updating; update
   dependencies
+    * 0.25.1 (2024-07-30): Fix makefile; update dependencies
 
 [`atty`]: https://crates.io/crates/atty
 [`bunt`]: https://crates.io/crates/bunt
