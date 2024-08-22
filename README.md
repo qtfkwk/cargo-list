@@ -31,7 +31,7 @@ Options:
 
 ```text
 $ cargo list -V
-cargo-list 0.25.2
+cargo-list 0.25.3
 ```
 
 ### List installed external crates
@@ -257,8 +257,8 @@ If you want to include just a subset of the crates, instead of `Crates::from(&pa
 
 # Changelog
 
-Please read the [CHANGELOG.md] in the [repository].
+Please read the [`CHANGELOG.md`] in the [repository].
 
-[CHANGELOG.md]: https://github.com/qtfkwk/cargo-list/blob/main/CHANGELOG.md
+[`CHANGELOG.md`]: https://github.com/qtfkwk/cargo-list/blob/main/CHANGELOG.md
 [repository]: https://github.com/qtfkwk/cargo-list
 

@@ -180,8 +180,8 @@ cargo list -f rust-pretty -o
 
 # Changelog
 
-Please read the [CHANGELOG.md] in the [repository].
+Please read the [`CHANGELOG.md`] in the [repository].
 
-[CHANGELOG.md]: https://github.com/qtfkwk/cargo-list/blob/main/CHANGELOG.md
+[`CHANGELOG.md`]: https://github.com/qtfkwk/cargo-list/blob/main/CHANGELOG.md
 [repository]: https://github.com/qtfkwk/cargo-list
 
