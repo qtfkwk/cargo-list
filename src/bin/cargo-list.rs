@@ -1,6 +1,9 @@
 use anyhow::Result;
 use cargo_list::Crates;
-use clap::{builder::TypedValueParser, Parser, ValueEnum};
+use clap::{
+    builder::{Styles, TypedValueParser},
+    Parser, ValueEnum,
+};
 use expanduser::expanduser;
 use indexmap::IndexSet;
 use rayon::prelude::*;
@@ -35,10 +38,18 @@ impl Kind {
 
 //--------------------------------------------------------------------------------------------------
 
+const STYLES: Styles = Styles::styled()
+    .header(clap_cargo::style::HEADER)
+    .usage(clap_cargo::style::USAGE)
+    .literal(clap_cargo::style::LITERAL)
+    .placeholder(clap_cargo::style::PLACEHOLDER)
+    .error(clap_cargo::style::ERROR)
+    .valid(clap_cargo::style::VALID)
+    .invalid(clap_cargo::style::INVALID);
+
 /// List and update installed crates
 #[derive(Parser)]
-#[command(name = "cargo")]
-#[command(bin_name = "cargo")]
+#[command(name = "cargo", bin_name = "cargo", styles = STYLES)]
 enum Cli {
     /// List and update installed crates
     List(List),

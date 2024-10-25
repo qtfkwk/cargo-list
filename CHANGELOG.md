@@ -74,6 +74,7 @@
     * 0.25.1 (2024-07-30): Fix makefile; update dependencies
     * 0.25.2 (2024-08-15): Update dependencies
     * 0.25.3 (2024-08-22): Fix readme; add `commit` target to makefile; update dependencies
+* 0.26.0 (2024-10-24): Add clap color; update dependencies
 
 [`atty`]: https://crates.io/crates/atty
 [`bunt`]: https://crates.io/crates/bunt
