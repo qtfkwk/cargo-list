@@ -295,7 +295,7 @@ fn inner(cli: &List) -> Result<()> {
                     .collect::<Vec<_>>()
             };
 
-            for k in kinds {
+            for k in &kinds {
                 println!("{}\n", format!("# {k:?}").magenta().bold());
                 let mut outdated = 0;
                 let mut update_pinned = 0;
@@ -305,8 +305,8 @@ fn inner(cli: &List) -> Result<()> {
                 } else {
                     Veg::table("#|Name|Pinned|Installed|Available\n-:|-|-|-|-")
                 };
-                for c in all.values().filter(|x| x.kind == k) {
-                    if k == cargo_list::Kind::External {
+                for c in all.values().filter(|x| x.kind == *k) {
+                    if *k == cargo_list::Kind::External {
                         let (pinned, available) = if let Some(pinned) = &c.version_req {
                             if c.newer.is_empty() {
                                 (String::new(), c.available.to_string())
@@ -383,7 +383,7 @@ fn inner(cli: &List) -> Result<()> {
                             ));
                             number += 1;
                         }
-                    } else if !cli.outdated {
+                    } else if !cli.outdated || c.kind == cargo_list::Kind::Git {
                         t.push(Row::new(
                             number.to_string().normal(),
                             c.name.normal(),
@@ -403,7 +403,7 @@ fn inner(cli: &List) -> Result<()> {
                 }
 
                 // Print a summary
-                if k == cargo_list::Kind::External {
+                if *k == cargo_list::Kind::External {
                     if outdated == 0 {
                         println!(
                             "{}\n",
@@ -437,57 +437,86 @@ fn inner(cli: &List) -> Result<()> {
                 }
             }
 
-            // Update external crates
             if cli.update {
-                let mut updates = outdated
-                    .iter()
-                    .map(|(name, c)| (*name, *c))
-                    .collect::<BTreeMap<_, _>>();
-                if cli.outdated_rust {
-                    updates.append(&mut outdated_rust.clone());
-                }
-                let mut update_pinned = 0;
-                if cli.ignore_req {
-                    updates.append(&mut outdated_pinned.clone());
-                    update_pinned += outdated_pinned.len();
-                }
-                if !updates.is_empty() {
-                    let mut shell = Shell {
-                        dry_run: cli.dry_run,
-                        ..Default::default()
-                    };
-                    if cli.dry_run {
-                        shell.info = String::from("bash");
+                // Update external crates
+                if kinds.contains(&cargo_list::Kind::External) {
+                    let mut updates = outdated.clone();
+                    if cli.outdated_rust {
+                        updates.append(&mut outdated_rust.clone());
                     }
-                    for (name, c) in &updates {
-                        println!("{}\n", format!("## {name:?}").yellow().bold());
-                        shell.run(&[Command {
-                            command: c
-                                .update_command(
-                                    cli.ignore_req && outdated_pinned.contains_key(name),
-                                )
-                                .join(" "),
+                    let mut update_pinned = 0;
+                    if cli.ignore_req {
+                        updates.append(&mut outdated_pinned.clone());
+                        update_pinned += outdated_pinned.len();
+                    }
+                    if !updates.is_empty() {
+                        println!("{}\n", "# External".magenta().bold());
+                        let mut shell = Shell {
+                            dry_run: cli.dry_run,
                             ..Default::default()
-                        }]);
-                    }
+                        };
+                        if cli.dry_run {
+                            shell.info = String::from("bash");
+                        }
+                        for (name, c) in &updates {
+                            println!("{}\n", format!("## {name:?}").yellow().bold());
+                            shell.run(&[Command {
+                                command: c
+                                    .update_command(
+                                        cli.ignore_req && outdated_pinned.contains_key(name),
+                                    )
+                                    .join(" "),
+                                ..Default::default()
+                            }]);
+                        }
 
-                    // Print summary
-                    let mut c = cli.clone();
-                    c.update = false;
-                    c.outdated = false;
-                    c.include = updates.keys().map(|x| x.to_string()).collect();
-                    inner(&c)?;
-                    if !cli.ignore_req && update_pinned > 0 {
-                        println!(
-                            "{}\n",
-                            format!(
-                                "*Consider updating {} pinned external crate{} via `-I`.*",
-                                update_pinned,
-                                if update_pinned == 1 { "" } else { "s" }
-                            )
-                            .yellow()
-                            .italic(),
-                        );
+                        // Print summary
+                        let mut c = cli.clone();
+                        c.update = false;
+                        c.outdated = false;
+                        c.include = updates.keys().map(|x| x.to_string()).collect();
+                        inner(&c)?;
+                        if !cli.ignore_req && update_pinned > 0 {
+                            println!(
+                                "{}\n",
+                                format!(
+                                    "*Consider updating {} pinned external crate{} via `-I`.*",
+                                    update_pinned,
+                                    if update_pinned == 1 { "" } else { "s" }
+                                )
+                                .yellow()
+                                .italic(),
+                            );
+                        }
+                    }
+                }
+
+                // Update git crates
+                if kinds.contains(&cargo_list::Kind::Git) {
+                    let outdated = all
+                        .iter()
+                        .filter(|(_name, c)| c.kind == cargo_list::Kind::Git)
+                        .collect::<BTreeMap<_, _>>();
+                    if !outdated.is_empty() {
+                        println!("{}\n", "# Git".magenta().bold());
+                        let mut shell = Shell {
+                            dry_run: cli.dry_run,
+                            ..Default::default()
+                        };
+                        if cli.dry_run {
+                            shell.info = String::from("bash");
+                        }
+                        for (name, c) in &outdated {
+                            println!("{}\n", format!("## {name:?}").yellow().bold());
+                            shell.run(&[Command {
+                                command: c
+                                    .update_command(
+                                        cli.ignore_req && outdated_pinned.contains_key(*name),
+                                    )
+                                    .join(" "),
+                                ..Default::default()
+                            }]);
+                        }
                     }
                 }
             }

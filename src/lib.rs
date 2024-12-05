@@ -257,7 +257,15 @@ impl Crate {
             r.push("--force");
         }
 
-        r.push(&self.name);
+        if self.kind == Git {
+            r.push("--git");
+            r.push(&self.source[4..self.source.find('#').unwrap()]);
+            for bin in &self.bins {
+                r.push(bin);
+            }
+        } else {
+            r.push(&self.name);
+        }
 
         r.into_iter().map(String::from).collect()
     }
