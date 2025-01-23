@@ -52,6 +52,7 @@
 * 0.26.0 (2024-10-24): Add clap color; update dependencies
     * 0.26.1 (2024-12-04): Update dependencies
 * 0.27.0 (2024-12-05): Update git crates if `-a` or `-k git`; fix changelog; update dependencies
+* 0.28.0 (2025-01-23): Fix issue #1 (exclude yanked crates from being considered as available versions); update dependencies
 
 [`atty`]: https://crates.io/crates/atty
 [`bunt`]: https://crates.io/crates/bunt

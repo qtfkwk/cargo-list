@@ -1,6 +1,6 @@
 [package]
 name = "cargo-list"
-version = "0.27.0"
+version = "0.28.0"
 edition = "2021"
 description = "List and update installed crates"
 repository = "https://github.com/qtfkwk/cargo-list"
@@ -10,19 +10,19 @@ keywords = [ "cargo", "install", "list", "update", "crates" ]
 categories = [ "development-tools::cargo-plugins", "command-line-utilities" ]
 
 [dependencies]
-anyhow = "1.0.94"
-clap = { version = "4.5.22", features = ["derive", "wrap_help"] }
-clap-cargo = "0.14.1"
+anyhow = "1.0.95"
+clap = { version = "4.5.27", features = ["derive", "wrap_help"] }
+clap-cargo = "0.15.2"
 expanduser = "1.2.2"
-indexmap = { version = "2.7.0", features = ["rayon"] }
+indexmap = { version = "2.7.1", features = ["rayon"] }
 rayon = "1.10.0"
 regex = "1.11.1"
-reqwest = { version = "0.12.9", features = ["blocking", "json"] }
-semver = "1.0.23"
-serde = { version = "1.0.215", features = ["derive"] }
-serde_json = "1.0.133"
+reqwest = { version = "0.12.12", features = ["blocking", "json"] }
+semver = "1.0.25"
+serde = { version = "1.0.217", features = ["derive"] }
+serde_json = "1.0.137"
 spinners = "4.1.1"
-sprint = "0.11.2"
+sprint = "0.11.3"
 veg = { version = "0.5.4", features = ["colored"] }
 
 [target.'cfg(unix)'.dependencies]
