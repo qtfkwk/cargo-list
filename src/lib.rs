@@ -289,7 +289,7 @@ pub fn latest(name: &str, version_req: &Option<String>) -> Result<(String, Vec<S
             .filter_map(|x| {
                 if let Some(version) = x["num"].as_str() {
                     if let Ok(v) = semver::Version::parse(version) {
-                        if v.pre.is_empty() {
+                        if v.pre.is_empty() && x["yanked"].as_bool() != Some(true) {
                             Some(v)
                         } else {
                             None
