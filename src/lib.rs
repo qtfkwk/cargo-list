@@ -2,18 +2,28 @@
 
 //--------------------------------------------------------------------------------------------------
 
-use anyhow::{anyhow, Result};
-use rayon::prelude::*;
-use regex::RegexSet;
-use serde::{Deserialize, Serialize};
-use sprint::*;
-use std::{collections::BTreeMap, fs::File, path::Path};
+use {
+    anyhow::{anyhow, Result},
+    lazy_static::lazy_static,
+    rayon::prelude::*,
+    regex::RegexSet,
+    serde::{Deserialize, Serialize},
+    sprint::*,
+    std::{collections::BTreeMap, fs::File, path::Path},
+};
 
 //--------------------------------------------------------------------------------------------------
 
-/**
-Crate kind
-*/
+lazy_static! {
+    static ref CLIENT: reqwest::blocking::Client = reqwest::blocking::Client::builder()
+        .user_agent("cargo-list")
+        .build()
+        .expect("create reqwest client");
+}
+
+//--------------------------------------------------------------------------------------------------
+
+/// Crate kind
 #[derive(Debug, Default, Serialize, Eq, PartialEq, Hash, Clone)]
 pub enum Kind {
     Local,
@@ -25,9 +35,7 @@ pub enum Kind {
 
 use Kind::*;
 
-/**
-All crate kinds
-*/
+/// All crate kinds
 pub const ALL_KINDS: [Kind; 3] = [Local, Git, External];
 
 impl Kind {
@@ -44,9 +52,7 @@ impl Kind {
 
 //--------------------------------------------------------------------------------------------------
 
-/**
-All installed crates
-*/
+/// All installed crates
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Crates {
     installs: BTreeMap<String, Crate>,
@@ -78,9 +84,7 @@ impl Crates {
         self.installs.is_empty()
     }
 
-    /**
-    Return a view of all crates
-    */
+    /// Return a view of all crates
     pub fn crates(&self) -> BTreeMap<&str, &Crate> {
         self.installs
             .values()
@@ -140,9 +144,7 @@ impl Crates {
 
 //--------------------------------------------------------------------------------------------------
 
-/**
-Individual installed crate
-*/
+/// Individual installed crate
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Crate {
     #[serde(skip_deserializing)]
@@ -183,9 +185,7 @@ pub struct Crate {
 }
 
 impl Crate {
-    /**
-    Initialize additional fields after deserialization
-    */
+    /// Initialize additional fields after deserialization
     fn init(&mut self, k: &str, active_version: &str) -> Result<()> {
         let mut s = k.split(' ');
         self.name = s.next().unwrap().to_string();
@@ -220,9 +220,7 @@ impl Crate {
         Ok(())
     }
 
-    /**
-    Generate the cargo install command to update the crate
-    */
+    /// Generate the cargo install command to update the crate
     pub fn update_command(&self, pinned: bool) -> Vec<String> {
         let mut r = vec!["cargo", "install"];
 
@@ -274,58 +272,48 @@ impl Crate {
 //--------------------------------------------------------------------------------------------------
 
 /**
-Get the latest available version(s) for a crate, optionally matching a required version
+Deserialize the crate version object returned via the crates.io API
+(`https://crates.io/api/v1/crates/{name}/versions`) in the [`latest()`] function
+*/
+#[derive(Deserialize)]
+struct Version {
+    num: semver::Version,
+    yanked: bool,
+}
+
+//--------------------------------------------------------------------------------------------------
+
+/**
+Get the latest available (not prerelease or yanked) version(s) for a crate, optionally matching a
+required version
 */
 pub fn latest(name: &str, version_req: &Option<String>) -> Result<(String, Vec<String>)> {
-    let client = reqwest::blocking::Client::builder()
-        .user_agent("cargo-list")
-        .build()?;
     let url = format!("https://crates.io/api/v1/crates/{name}/versions");
-    let res = client.get(url).send()?;
-    let json = res.json::<serde_json::Value>()?;
-    if let Some(available) = json["versions"].as_array() {
-        let available = available
-            .iter()
-            .filter_map(|x| {
-                if let Some(version) = x["num"].as_str() {
-                    if let Ok(v) = semver::Version::parse(version) {
-                        if v.pre.is_empty() && x["yanked"].as_bool() != Some(true) {
-                            Some(v)
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<_>>();
-        if let Some(req) = version_req {
-            let req = semver::VersionReq::parse(req)?;
-            let mut newer = vec![];
-            for v in &available {
-                if req.matches(v) {
-                    return Ok((v.to_string(), newer));
-                } else {
-                    newer.push(v.to_string());
-                }
+    let res = CLIENT.get(url).send()?;
+    let versions = res.json::<Vec<Version>>()?;
+    let available = versions
+        .iter()
+        .filter(|version| version.num.pre.is_empty() && !version.yanked)
+        .collect::<Vec<_>>();
+    if let Some(req) = version_req {
+        let req = semver::VersionReq::parse(req)?;
+        let mut newer = vec![];
+        for v in &available {
+            if req.matches(&v.num) {
+                return Ok((v.num.to_string(), newer));
+            } else {
+                newer.push(v.num.to_string());
             }
-            Err(anyhow!(
-                "Failed to find an available version matching the requirement"
-            ))
-        } else {
-            Ok((available[0].to_string(), vec![]))
         }
+        Err(anyhow!(
+            "Failed to find an available version matching the requirement"
+        ))
     } else {
-        Err(anyhow!("Failed to parse versions"))
+        Ok((available[0].num.to_string(), vec![]))
     }
 }
 
-/**
-Get the active toolchain
-*/
+/// Get the active toolchain
 pub fn active_toolchain() -> String {
     let r = Shell {
         print: false,
