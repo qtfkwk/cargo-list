@@ -208,7 +208,7 @@ checksum = "325918d6fe32f23b19878fe4b34794ae41fc19ddbe53b10571a4874d44ffd39b"
 
 [[package]]
 name = "cargo-list"
-version = "0.29.1"
+version = "0.30.0"
 dependencies = [
  "anyhow",
  "clap",

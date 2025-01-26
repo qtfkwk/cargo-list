@@ -55,6 +55,7 @@
 * 0.28.0 (2025-01-23): Fix [issue #1](https://github.com/qtfkwk/cargo-list/issues/1) (exclude yanked crates from being considered as available versions); update dependencies
 * 0.29.0 (2025-01-24): Deserialize available crate versions via API; lazily create reqwest client once; clean up
     * 0.29.1 (2025-01-25): Fix [issue #3](https://github.com/qtfkwk/cargo-list/issues/3) (resolve the `error decoding response body` error); fix changelog; update dependencies
+* 0.30.0 (2025-01-26): Add `Versions::available`, `Version::is_available` methods; error if no available versions
 
 [`atty`]: https://crates.io/crates/atty
 [`bunt`]: https://crates.io/crates/bunt

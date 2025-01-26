@@ -284,12 +284,22 @@ impl Versions {
     fn iter(&self) -> std::slice::Iter<'_, Version> {
         self.versions.iter()
     }
+
+    fn available(&self) -> Vec<&Version> {
+        self.iter().filter(|x| x.is_available()).collect()
+    }
 }
 
 #[derive(Debug, Deserialize)]
 struct Version {
     num: semver::Version,
     yanked: bool,
+}
+
+impl Version {
+    fn is_available(&self) -> bool {
+        self.num.pre.is_empty() && !self.yanked
+    }
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -302,10 +312,7 @@ pub fn latest(name: &str, version_req: &Option<String>) -> Result<(String, Vec<S
     let url = format!("https://crates.io/api/v1/crates/{name}/versions");
     let res = CLIENT.get(url).send()?;
     let versions = res.json::<Versions>()?;
-    let available = versions
-        .iter()
-        .filter(|version| version.num.pre.is_empty() && !version.yanked)
-        .collect::<Vec<_>>();
+    let available = versions.available();
     if let Some(req) = version_req {
         let req = semver::VersionReq::parse(req)?;
         let mut newer = vec![];
@@ -319,6 +326,8 @@ pub fn latest(name: &str, version_req: &Option<String>) -> Result<(String, Vec<S
         Err(anyhow!(
             "Failed to find an available version matching the requirement"
         ))
+    } else if available.is_empty() {
+        Err(anyhow!("Failed to find any available version"))
     } else {
         Ok((available[0].num.to_string(), vec![]))
     }
