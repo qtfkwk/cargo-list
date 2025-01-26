@@ -275,7 +275,18 @@ impl Crate {
 Deserialize the crate version object returned via the crates.io API
 (`https://crates.io/api/v1/crates/{name}/versions`) in the [`latest()`] function
 */
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
+struct Versions {
+    versions: Vec<Version>,
+}
+
+impl Versions {
+    fn iter(&self) -> std::slice::Iter<'_, Version> {
+        self.versions.iter()
+    }
+}
+
+#[derive(Debug, Deserialize)]
 struct Version {
     num: semver::Version,
     yanked: bool,
@@ -290,7 +301,7 @@ required version
 pub fn latest(name: &str, version_req: &Option<String>) -> Result<(String, Vec<String>)> {
     let url = format!("https://crates.io/api/v1/crates/{name}/versions");
     let res = CLIENT.get(url).send()?;
-    let versions = res.json::<Vec<Version>>()?;
+    let versions = res.json::<Versions>()?;
     let available = versions
         .iter()
         .filter(|version| version.num.pre.is_empty() && !version.yanked)
