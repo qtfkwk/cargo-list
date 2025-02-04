@@ -4,12 +4,12 @@ use clap::{
     builder::{Styles, TypedValueParser},
     Parser, ValueEnum,
 };
-use expanduser::expanduser;
+use dirs::home_dir;
 use indexmap::IndexSet;
 use rayon::prelude::*;
 use spinners::{Spinner, Spinners};
 use sprint::*;
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, path::PathBuf};
 use veg::colored::{ColoredString, Colorize, Veg};
 
 #[cfg(unix)]
@@ -222,8 +222,18 @@ fn main() -> Result<()> {
 
 fn inner(cli: &List) -> Result<()> {
     let mut sp = Spinner::new(Spinners::Line, "".into());
+
+    let cli_config_path = if cli.config == "~" {
+        home_dir().unwrap().join(&cli.config[1..])
+    } 
+    else if cli.config.starts_with("~") {
+        home_dir().unwrap().join(&cli.config[2..])
+    }
+    else {
+        PathBuf::from(&cli.config)
+    };
     let installed = Crates::from_include(
-        &expanduser(&cli.config)?,
+        &cli_config_path,
         &cli.include.iter().map(|x| x.as_str()).collect::<Vec<_>>(),
     )?;
     sp.stop();
