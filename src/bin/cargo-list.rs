@@ -220,20 +220,23 @@ fn main() -> Result<()> {
     inner(&cli)
 }
 
+fn extenduser(path: &str) -> PathBuf {
+    if path == "~" {
+        home_dir().unwrap().join(&path[1..])
+    }
+    else if path.starts_with("~") {
+        home_dir().unwrap().join(&path[2..])
+    }
+    else {
+        PathBuf::from(&path)
+    }
+}
 fn inner(cli: &List) -> Result<()> {
     let mut sp = Spinner::new(Spinners::Line, "".into());
 
-    let cli_config_path = if cli.config == "~" {
-        home_dir().unwrap().join(&cli.config[1..])
-    } 
-    else if cli.config.starts_with("~") {
-        home_dir().unwrap().join(&cli.config[2..])
-    }
-    else {
-        PathBuf::from(&cli.config)
-    };
+
     let installed = Crates::from_include(
-        &cli_config_path,
+        &extenduser(&cli.config),
         &cli.include.iter().map(|x| x.as_str()).collect::<Vec<_>>(),
     )?;
     sp.stop();
