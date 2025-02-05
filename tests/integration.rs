@@ -1,11 +1,11 @@
 use cargo_list::Crates;
-use expanduser::expanduser;
+use dirs::home_dir;
 use rayon::prelude::*;
 use std::collections::BTreeMap;
 
 #[test]
 fn crates_from() {
-    let path = expanduser("~/.cargo/.crates2.json").unwrap();
+    let path = home_dir().unwrap().join(".cargo/.crates2.json");
 
     match Crates::from(&path) {
         Ok(installed) => {
@@ -52,7 +52,7 @@ fn crates_from() {
 
 #[test]
 fn crates_from_include() {
-    let path = expanduser("~/.cargo/.crates2.json").unwrap();
+    let path = home_dir().unwrap().join(".cargo/.crates2.json");
 
     match Crates::from_include(&path, &["^t"]) {
         Ok(installed) => {

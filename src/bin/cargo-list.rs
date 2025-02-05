@@ -4,12 +4,12 @@ use clap::{
     builder::{Styles, TypedValueParser},
     Parser, ValueEnum,
 };
-use expanduser::expanduser;
+use dirs::home_dir;
 use indexmap::IndexSet;
 use rayon::prelude::*;
 use spinners::{Spinner, Spinners};
 use sprint::*;
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, path::PathBuf};
 use veg::colored::{ColoredString, Colorize, Veg};
 
 #[cfg(unix)]
@@ -220,10 +220,23 @@ fn main() -> Result<()> {
     inner(&cli)
 }
 
+fn extenduser(path: &str) -> PathBuf {
+    if path == "~" {
+        home_dir().unwrap().join(&path[1..])
+    }
+    else if path.starts_with("~") {
+        home_dir().unwrap().join(&path[2..])
+    }
+    else {
+        PathBuf::from(&path)
+    }
+}
 fn inner(cli: &List) -> Result<()> {
     let mut sp = Spinner::new(Spinners::Line, "".into());
+
+
     let installed = Crates::from_include(
-        &expanduser(&cli.config)?,
+        &extenduser(&cli.config),
         &cli.include.iter().map(|x| x.as_str()).collect::<Vec<_>>(),
     )?;
     sp.stop();
