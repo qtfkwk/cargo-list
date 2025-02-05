@@ -31,7 +31,7 @@ Options:
 
 ```text
 $ cargo list -V
-cargo-list 0.30.0
+cargo-list 0.31.0
 ```
 
 ### List installed external crates
@@ -199,8 +199,7 @@ cargo list -f rust-pretty -o
 ## Library
 
 ```rust
-use cargo_list::Crates;
-use expanduser::expanduser;
+use cargo_list::{expanduser, Crates};
 use rayon::prelude::*;
 use std::collections::BTreeMap;
 

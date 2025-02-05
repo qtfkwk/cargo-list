@@ -56,11 +56,14 @@
 * 0.29.0 (2025-01-24): Deserialize available crate versions via API; lazily create reqwest client once; clean up
     * 0.29.1 (2025-01-25): Fix [issue #3](https://github.com/qtfkwk/cargo-list/issues/3) (resolve the `error decoding response body` error); fix changelog; update dependencies
 * 0.30.0 (2025-01-26): Add `Versions::available`, `Version::is_available` methods; error if no available versions
+* 0.31.0 (2025-02-05): Replace [`expanduser`] dependency with [`dirs`] to better support Windows (by [x807x] via [issue #4] / [PR #5]); update dependencies
 
 [`atty`]: https://crates.io/crates/atty
 [`bunt`]: https://crates.io/crates/bunt
 [`clap`]: https://crates.io/crates/clap
 [`colored`]: https://crates.io/crates/colored
+[`dirs`]: https://crates.io/crates/dirs
+[`expanduser`]: https://crates.io/crates/expanduser
 [`is-terminal`]: https://crates.io/crates/is-terminal
 [`kapow`]: https://crates.io/crates/kapow
 [`mkrs`]: https://crates.io/crates/mkrs
@@ -70,4 +73,8 @@
 [`veg`]: https://crates.io/crates/veg
 
 [`Makefile.md`]: Makefile.md
+
+[x807x]: https://github.com/x807x
+[issue #4]: https://github.com/qtfkwk/cargo-list/issues/4
+[PR #5]: https://github.com/qtfkwk/cargo-list/pull/5
 

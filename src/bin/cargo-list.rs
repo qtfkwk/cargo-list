@@ -1,16 +1,17 @@
-use anyhow::Result;
-use cargo_list::Crates;
-use clap::{
-    builder::{Styles, TypedValueParser},
-    Parser, ValueEnum,
+use {
+    anyhow::Result,
+    cargo_list::{expanduser, Crates},
+    clap::{
+        builder::{Styles, TypedValueParser},
+        Parser, ValueEnum,
+    },
+    indexmap::IndexSet,
+    rayon::prelude::*,
+    spinners::{Spinner, Spinners},
+    sprint::*,
+    std::collections::BTreeMap,
+    veg::colored::{ColoredString, Colorize, Veg},
 };
-use dirs::home_dir;
-use indexmap::IndexSet;
-use rayon::prelude::*;
-use spinners::{Spinner, Spinners};
-use sprint::*;
-use std::{collections::BTreeMap, path::PathBuf};
-use veg::colored::{ColoredString, Colorize, Veg};
 
 #[cfg(unix)]
 use pager::Pager;
@@ -220,23 +221,11 @@ fn main() -> Result<()> {
     inner(&cli)
 }
 
-fn extenduser(path: &str) -> PathBuf {
-    if path == "~" {
-        home_dir().unwrap().join(&path[1..])
-    }
-    else if path.starts_with("~") {
-        home_dir().unwrap().join(&path[2..])
-    }
-    else {
-        PathBuf::from(&path)
-    }
-}
 fn inner(cli: &List) -> Result<()> {
     let mut sp = Spinner::new(Spinners::Line, "".into());
 
-
     let installed = Crates::from_include(
-        &extenduser(&cli.config),
+        &expanduser(&cli.config),
         &cli.include.iter().map(|x| x.as_str()).collect::<Vec<_>>(),
     )?;
     sp.stop();

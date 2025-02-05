@@ -4,12 +4,17 @@
 
 use {
     anyhow::{anyhow, Result},
+    dirs::home_dir,
     lazy_static::lazy_static,
     rayon::prelude::*,
     regex::RegexSet,
     serde::{Deserialize, Serialize},
     sprint::*,
-    std::{collections::BTreeMap, fs::File, path::Path},
+    std::{
+        collections::BTreeMap,
+        fs::File,
+        path::{Path, PathBuf},
+    },
 };
 
 //--------------------------------------------------------------------------------------------------
@@ -348,5 +353,16 @@ pub fn active_toolchain() -> String {
         s.to_string()
     } else {
         String::new()
+    }
+}
+
+/// Expand a path with an optional tilde (`~`)
+pub fn expanduser(path: &str) -> PathBuf {
+    if path == "~" {
+        home_dir().unwrap().join(&path[1..])
+    } else if path.starts_with("~") {
+        home_dir().unwrap().join(&path[2..])
+    } else {
+        PathBuf::from(&path)
     }
 }

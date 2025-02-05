@@ -1,10 +1,9 @@
 ```rust
-use cargo_list::Crates;
-# use expanduser::expanduser;
+use cargo_list::{expanduser, Crates};
 # use rayon::prelude::*;
 # use std::collections::BTreeMap;
 # 
-# let path = expanduser("~/.cargo/.crates2.json").unwrap();
+let path = expanduser("~/.cargo/.crates2.json");
 
 match Crates::from(&path) {
     Ok(installed) => {
