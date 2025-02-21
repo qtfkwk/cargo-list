@@ -31,7 +31,7 @@ Options:
 
 ```text
 $ cargo list -V
-cargo-list 0.31.0
+cargo-list 0.31.1
 ```
 
 ### List installed external crates
@@ -203,7 +203,7 @@ use cargo_list::{expanduser, Crates};
 use rayon::prelude::*;
 use std::collections::BTreeMap;
 
-let path = expanduser("~/.cargo/.crates2.json").unwrap();
+let path = expanduser("~/.cargo/.crates2.json");
 
 match Crates::from(&path) {
     Ok(installed) => {

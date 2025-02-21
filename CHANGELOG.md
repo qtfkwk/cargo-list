@@ -57,6 +57,7 @@
     * 0.29.1 (2025-01-25): Fix [issue #3](https://github.com/qtfkwk/cargo-list/issues/3) (resolve the `error decoding response body` error); fix changelog; update dependencies
 * 0.30.0 (2025-01-26): Add `Versions::available`, `Version::is_available` methods; error if no available versions
 * 0.31.0 (2025-02-05): Replace [`expanduser`] dependency with [`dirs`] to better support Windows (by [x807x] via [issue #4] / [PR #5]); update dependencies
+    * 0.31.1 (2025-02-21): Update dependencies
 
 [`atty`]: https://crates.io/crates/atty
 [`bunt`]: https://crates.io/crates/bunt
