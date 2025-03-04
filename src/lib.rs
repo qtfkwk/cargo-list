@@ -120,13 +120,13 @@ impl Crates {
         crates.active_toolchain = active_toolchain();
         crates.active_version = crates
             .active_toolchain
-            .split('\n')
-            .nth(1)
-            .unwrap()
-            .split(' ')
-            .nth(1)
-            .unwrap()
-            .to_string();
+            .lines()
+            .filter_map(|line| {
+                line.strip_prefix("compiler: rustc ")
+                    .map(|s| s.split(' ').nth(0).unwrap().to_string())
+            })
+            .nth(0)
+            .unwrap();
         let errors = crates
             .installs
             .par_iter_mut()
