@@ -122,8 +122,10 @@ impl Crates {
             .active_toolchain
             .lines()
             .filter_map(|line| {
-                line.strip_prefix("compiler: rustc ")
-                    .map(|s| s.split(' ').nth(0).unwrap().to_string())
+                line.split(' ')
+                    .skip_while(|&word| word != "rustc")
+                    .nth(1)
+                    .map(|s| s.to_string())
             })
             .nth(0)
             .unwrap();
