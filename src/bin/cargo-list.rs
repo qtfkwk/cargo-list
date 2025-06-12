@@ -100,8 +100,15 @@ struct List {
     #[arg(short = 'n', long)]
     dry_run: bool,
 
-    /// Cargo install metadata file
-    #[arg(short, value_name = "PATH", default_value = "~/.cargo/.crates2.json")]
+    /**
+    Cargo install metadata file
+    (falls back to `~/.cargo/.crates2.json` if `$CARGO_HOME` is unset)
+    */
+    #[arg(
+        short,
+        value_name = "PATH",
+        default_value = "$CARGO_HOME/.crates2.json"
+    )]
     config: String,
 
     /// Print readme
@@ -225,7 +232,7 @@ fn inner(cli: &List) -> Result<()> {
     let mut sp = Spinner::new(Spinners::Line, "".into());
 
     let installed = Crates::from_include(
-        &expanduser(&cli.config),
+        &get_config_path(&cli.config),
         &cli.include.iter().map(|x| x.as_str()).collect::<Vec<_>>(),
     )?;
     sp.stop();
@@ -550,4 +557,20 @@ fn inner(cli: &List) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn get_config_path(config: &str) -> std::path::PathBuf {
+    if let Some(s) = config.strip_prefix("$CARGO_HOME/") {
+        // Default
+        if let Ok(cargo_home) = std::env::var("CARGO_HOME") {
+            // $CARGO_HOME is set...
+            std::path::PathBuf::from(&format!("{cargo_home}/{s}"))
+        } else {
+            // $CARGO_HOME is not set... fall back to the old default
+            expanduser("~/.cargo/.crates2.json")
+        }
+    } else {
+        // User provided another custom path
+        std::path::PathBuf::from(config)
+    }
 }

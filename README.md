@@ -23,15 +23,17 @@ Options:
                    version different than the active toolchain
   -u, --update     Update outdated crates
   -n, --dry-run    Dry run
-  -c <PATH>        Cargo install metadata file [default: ~/.cargo/.crates2.json]
+  -c <PATH>        Cargo install metadata file (falls back to
+                   `~/.cargo/.crates2.json` if `$CARGO_HOME` is unset) [default:
+                   $CARGO_HOME/.crates2.json]
   -r, --readme     Print readme
-  -h, --help       Print help
+  -h, --help       Print help (see more with '--help')
   -V, --version    Print version
 ```
 
 ```text
 $ cargo list -V
-cargo-list 0.31.4
+cargo-list 0.32.0
 ```
 
 ### List installed external crates
