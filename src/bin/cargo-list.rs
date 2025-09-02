@@ -1,9 +1,9 @@
 use {
     anyhow::Result,
-    cargo_list::{expanduser, Crates},
+    cargo_list::{Crates, expanduser},
     clap::{
-        builder::{Styles, TypedValueParser},
         Parser, ValueEnum,
+        builder::{Styles, TypedValueParser},
     },
     indexmap::IndexSet,
     rayon::prelude::*,

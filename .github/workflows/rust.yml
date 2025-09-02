@@ -3,6 +3,7 @@ name: Rust
 on:
   push:
     branches: [ "main" ]
+
   pull_request:
     branches: [ "main" ]
 
@@ -11,12 +12,60 @@ env:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v4
-    - name: Build
-      run: cargo build --verbose
+    # - name: Temporarily modify the rust toolchain version
+    #   run: rustup override set nightly
+    - name: Output rust version
+      run: rustup --version
+    - name: Cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    - name: Run clippy
+      run: cargo clippy -- -D clippy::all
     - name: Run tests
       run: cargo test --verbose
+    - name: Build
+      run: cargo build --verbose
+
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Build in release mode
+      run: cargo build --release
+    - name: Login to crates.io
+      run: cargo login ${{ secrets.CRATES_IO }}
+    - name: Publish to crates.io
+      run: cargo publish
+    - name: Upload release artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: <my-app>
+        path: target/${{ matrix.BUILD_TARGET }}/<my-app>
+
+
+  release:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Download release artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ name }}
+        path: ./${{ name }}
+    - name: Publish to GitHub releases
+    - run: |
+        tar czf ${{ name }}-${{ version }}.tgz --strip 2 target/release/${{ name }}
+        gh release create --generate-notes ${{ name }}-${{ version }}.tgz
+
+# # References
+#
+# - <https://docs.github.com/en/actions/use-cases-and-examples/building-and-testing/building-and-testing-rust>
+# 
+

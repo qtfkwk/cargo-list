@@ -3,7 +3,7 @@
 //--------------------------------------------------------------------------------------------------
 
 use {
-    anyhow::{anyhow, Result},
+    anyhow::{Result, anyhow},
     dirs::home_dir,
     lazy_static::lazy_static,
     rayon::prelude::*,
@@ -245,12 +245,11 @@ impl Crate {
             r.push(features);
         }
 
-        if !pinned {
-            if let Some(version) = &self.version_req {
+        if !pinned
+            && let Some(version) = &self.version_req {
                 r.push("--version");
                 r.push(version);
             }
-        }
 
         r.push("--profile");
         r.push(&self.profile);

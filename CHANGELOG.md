@@ -62,6 +62,7 @@
     * 0.31.3 (2025-03-14): Fix [issue #7](https://github.com/qtfkwk/cargo-list/issues/7) (Still not detect the active Rust version correctly); update dependencies
     * 0.31.4 (2025-04-16): Update dependencies
 * 0.32.0 (2025-06-12): Change default value for `-c` to `$CARGO_HOME/.crates2.json` and use the `$CARGO_HOME` environment variable to find the `.cargo` folder; usually it's `~/.cargo` / `$HOME/.cargo` but in certain scenarios it could be different; update dependencies
+* 0.33.0 (2025-09-02): Update dependencies; 2024 edition
 
 [`atty`]: https://crates.io/crates/atty
 [`bunt`]: https://crates.io/crates/bunt

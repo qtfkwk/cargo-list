@@ -1,5 +1,5 @@
 use {
-    cargo_list::{expanduser, Crates},
+    cargo_list::{Crates, expanduser},
     rayon::prelude::*,
     std::collections::BTreeMap,
 };
