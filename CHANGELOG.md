@@ -64,6 +64,7 @@
 * 0.32.0 (2025-06-12): Change default value for `-c` to `$CARGO_HOME/.crates2.json` and use the `$CARGO_HOME` environment variable to find the `.cargo` folder; usually it's `~/.cargo` / `$HOME/.cargo` but in certain scenarios it could be different; update dependencies
 * 0.33.0 (2025-09-02): Update dependencies; 2024 edition
     * 0.33.1 (2025-10-27): Update dependencies; use `pager2`
+    * 0.33.2 (2025-10-27): Remove rust workflow
 
 [`atty`]: https://crates.io/crates/atty
 [`bunt`]: https://crates.io/crates/bunt

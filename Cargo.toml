@@ -1,6 +1,6 @@
 [package]
 name = "cargo-list"
-version = "0.33.1"
+version = "0.33.2"
 edition = "2024"
 description = "List and update installed crates"
 repository = "https://github.com/qtfkwk/cargo-list"
