@@ -245,11 +245,10 @@ impl Crate {
             r.push(features);
         }
 
-        if !pinned
-            && let Some(version) = &self.version_req {
-                r.push("--version");
-                r.push(version);
-            }
+        if !pinned && let Some(version) = &self.version_req {
+            r.push("--version");
+            r.push(version);
+        }
 
         r.push("--profile");
         r.push(&self.profile);
