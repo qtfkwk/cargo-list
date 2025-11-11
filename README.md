@@ -12,28 +12,28 @@ Arguments:
   [PATTERN]...  List/update crates matching given pattern(s)
 
 Options:
-  -f <FORMAT>      Output format [default: md] [possible values: json,
-                   json-pretty, md, rust, rust-pretty]
-  -k <KIND>        Kind(s) [default: external] [possible values: local, git,
-                   external]
-  -a               All kinds
-  -o, --outdated   Hide up-to-date crates
-  -I               Ignore version requirements
-  -R               Consider a crate to be outdated if compiled with a Rust
-                   version different than the active toolchain
-  -u, --update     Update outdated crates
-  -n, --dry-run    Dry run
-  -c <PATH>        Cargo install metadata file (falls back to
-                   `~/.cargo/.crates2.json` if `$CARGO_HOME` is unset) [default:
-                   $CARGO_HOME/.crates2.json]
-  -r, --readme     Print readme
-  -h, --help       Print help (see more with '--help')
-  -V, --version    Print version
+  -f <FORMAT>     Output format [default: md] [possible values: json,
+                  json-pretty, md, rust, rust-pretty]
+  -k <KIND>       Kind(s) [default: external] [possible values: local, git,
+                  external]
+  -a              All kinds
+  -o, --outdated  Hide up-to-date crates
+  -I              Ignore version requirements
+  -R              Consider a crate to be outdated if compiled with a Rust
+                  version different than the active toolchain
+  -u, --update    Update outdated crates
+  -n, --dry-run   Dry run
+  -c <PATH>       Cargo install metadata file (falls back to
+                  `~/.cargo/.crates2.json` if `$CARGO_HOME` is unset) [default:
+                  $CARGO_HOME/.crates2.json]
+  -r, --readme    Print readme
+  -h, --help      Print help (see more with '--help')
+  -V, --version   Print version
 ```
 
 ```text
 $ cargo list -V
-cargo-list 0.33.3
+cargo-list 0.33.4
 ```
 
 ### List installed external crates

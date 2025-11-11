@@ -66,10 +66,12 @@
     * 0.33.1 (2025-10-27): Update dependencies; use `pager2`
     * 0.33.2 (2025-10-27): Remove rust workflow; failed
     * 0.33.3 (2025-10-27): Remove rust workflow
+    * 0.33.4 (2025-11-11): Use [`clap-cargo`] `CLAP_STYLING`; update dependencies
 
 [`atty`]: https://crates.io/crates/atty
 [`bunt`]: https://crates.io/crates/bunt
 [`clap`]: https://crates.io/crates/clap
+[`clap-cargo`]: https://crates.io/crates/clap-cargo
 [`colored`]: https://crates.io/crates/colored
 [`dirs`]: https://crates.io/crates/dirs
 [`expanduser`]: https://crates.io/crates/expanduser
