@@ -1,6 +1,6 @@
 [package]
 name = "cargo-list"
-version = "0.33.4"
+version = "0.33.5"
 edition = "2024"
 description = "List and update installed crates"
 repository = "https://github.com/qtfkwk/cargo-list"
@@ -24,7 +24,7 @@ serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.145"
 spinners = "4.1.1"
 sprint = "0.12.2"
-veg = { version = "0.6.1", features = ["colored"] }
+veg = { version = "0.6.2", features = ["colored"] }
 
 [target.'cfg(unix)'.dependencies]
-pager2 = "0.6.1"
+pager2 = "0.6.2"
