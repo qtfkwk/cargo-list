@@ -68,6 +68,7 @@
     * 0.33.3 (2025-10-27): Remove rust workflow
     * 0.33.4 (2025-11-11): Use [`clap-cargo`] `CLAP_STYLING`; update dependencies
     * 0.33.5 (2025-11-11): Update dependencies
+    * 0.33.6 (2025-11-14): Update dependencies; clippy fixes
 
 [`atty`]: https://crates.io/crates/atty
 [`bunt`]: https://crates.io/crates/bunt

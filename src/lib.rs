@@ -5,26 +5,27 @@
 use {
     anyhow::{Result, anyhow},
     dirs::home_dir,
-    lazy_static::lazy_static,
     rayon::prelude::*,
     regex::RegexSet,
+    reqwest::blocking::Client,
     serde::{Deserialize, Serialize},
-    sprint::*,
+    sprint::{Command, Pipe, Shell},
     std::{
         collections::BTreeMap,
         fs::File,
         path::{Path, PathBuf},
+        sync::LazyLock,
     },
 };
 
 //--------------------------------------------------------------------------------------------------
 
-lazy_static! {
-    static ref CLIENT: reqwest::blocking::Client = reqwest::blocking::Client::builder()
+static CLIENT: LazyLock<Client> = LazyLock::new(|| {
+    Client::builder()
         .user_agent("cargo-list")
         .build()
-        .expect("create reqwest client");
-}
+        .expect("create reqwest client")
+});
 
 //--------------------------------------------------------------------------------------------------
 
@@ -38,7 +39,7 @@ pub enum Kind {
     External,
 }
 
-use Kind::*;
+use Kind::{External, Git, Local};
 
 /// All crate kinds
 pub const ALL_KINDS: [Kind; 3] = [Local, Git, External];
@@ -77,6 +78,10 @@ impl Crates {
     * Parse the name, version, source, rust version
     * Get the latest avaiable version
     * Determine the crate type
+
+    # Errors
+
+    Returns an error if not able to read the file at the given path
     */
     pub fn from(path: &Path) -> Result<Crates> {
         Crates::from_include(path, &[])
@@ -85,11 +90,13 @@ impl Crates {
     /**
     Return true if no crates are installed
     */
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.installs.is_empty()
     }
 
     /// Return a view of all crates
+    #[must_use]
     pub fn crates(&self) -> BTreeMap<&str, &Crate> {
         self.installs
             .values()
@@ -100,11 +107,17 @@ impl Crates {
     /**
     Like the [`Crates::from`] method, but accepts zero or more include patterns to match against
     crate names
+
+    # Errors
+
+    Returns an error if not able to read the file at the given path or a pattern is not a valid
+    regular expression
     */
+    #[allow(clippy::missing_panics_doc)]
     pub fn from_include(path: &Path, patterns: &[&str]) -> Result<Crates> {
         let mut crates: Crates = serde_json::from_reader(File::open(path)?)?;
         if !patterns.is_empty() {
-            let set = RegexSet::new(patterns).unwrap();
+            let set = RegexSet::new(patterns)?;
             crates.installs = crates
                 .installs
                 .into_par_iter()
@@ -125,7 +138,7 @@ impl Crates {
                 line.split(' ')
                     .skip_while(|&word| word != "rustc")
                     .nth(1)
-                    .map(|s| s.to_string())
+                    .map(ToString::to_string)
             })
             .nth(0)
             .unwrap();
@@ -141,7 +154,7 @@ impl Crates {
                 "Errors: {}",
                 errors
                     .iter()
-                    .map(|x| x.to_string())
+                    .map(ToString::to_string)
                     .collect::<Vec<_>>()
                     .join(", ")
             )))
@@ -153,6 +166,7 @@ impl Crates {
 
 /// Individual installed crate
 #[derive(Debug, Serialize, Deserialize)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct Crate {
     #[serde(skip_deserializing)]
     pub name: String,
@@ -227,7 +241,13 @@ impl Crate {
         Ok(())
     }
 
-    /// Generate the cargo install command to update the crate
+    /**
+    Generate the cargo install command to update the crate
+
+    # Panics
+
+    Panics if a git crate and not able to find `#` in the source
+    */
     pub fn update_command(&self, pinned: bool) -> Vec<String> {
         let mut r = vec!["cargo", "install"];
 
@@ -312,6 +332,10 @@ impl Version {
 /**
 Get the latest available (not prerelease or yanked) version(s) for a crate, optionally matching a
 required version
+
+# Errors
+
+Returns an error if not able to get the versions via the REST API
 */
 pub fn latest(name: &str, version_req: &Option<String>) -> Result<(String, Vec<String>)> {
     let url = format!("https://crates.io/api/v1/crates/{name}/versions");
@@ -324,9 +348,8 @@ pub fn latest(name: &str, version_req: &Option<String>) -> Result<(String, Vec<S
         for v in &available {
             if req.matches(&v.num) {
                 return Ok((v.num.to_string(), newer));
-            } else {
-                newer.push(v.num.to_string());
             }
+            newer.push(v.num.to_string());
         }
         Err(anyhow!(
             "Failed to find an available version matching the requirement"
@@ -339,6 +362,7 @@ pub fn latest(name: &str, version_req: &Option<String>) -> Result<(String, Vec<S
 }
 
 /// Get the active toolchain
+#[must_use]
 pub fn active_toolchain() -> String {
     let r = Shell {
         print: false,
@@ -350,17 +374,24 @@ pub fn active_toolchain() -> String {
         ..Default::default()
     }]);
     if let Pipe::String(Some(s)) = &r[0].stdout {
-        s.to_string()
+        s.clone()
     } else {
         String::new()
     }
 }
 
-/// Expand a path with an optional tilde (`~`)
+/**
+Expand a path with an optional tilde (`~`)
+
+# Panics
+
+Panics if not able to get the user's home directory
+*/
+#[must_use]
 pub fn expanduser(path: &str) -> PathBuf {
     if path == "~" {
         home_dir().unwrap().join(&path[1..])
-    } else if path.starts_with("~") {
+    } else if path.starts_with('~') {
         home_dir().unwrap().join(&path[2..])
     } else {
         PathBuf::from(&path)

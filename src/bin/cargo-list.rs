@@ -6,7 +6,7 @@ use {
     indexmap::IndexSet,
     rayon::prelude::*,
     spinners::{Spinner, Spinners},
-    sprint::*,
+    sprint::{Command, Shell},
     std::collections::BTreeMap,
     veg::colored::{ColoredString, Colorize, Veg},
 };
@@ -23,7 +23,7 @@ enum Kind {
     External,
 }
 
-use Kind::*;
+use Kind::{External, Git, Local};
 
 impl Kind {
     fn into(&self) -> cargo_list::Kind {
@@ -46,6 +46,7 @@ enum Cli {
 }
 
 #[derive(clap::Args, Clone)]
+#[allow(clippy::struct_excessive_bools)]
 #[command(version, long_about = None, max_term_width = 80)]
 struct List {
     /// Output format
@@ -120,7 +121,7 @@ enum OutputFormat {
     RustPretty,
 }
 
-use OutputFormat::*;
+use OutputFormat::{Json, JsonPretty, Markdown, Rust, RustPretty};
 
 impl std::fmt::Display for OutputFormat {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -217,12 +218,13 @@ fn main() -> Result<()> {
     inner(&cli)
 }
 
+#[allow(clippy::too_many_lines)]
 fn inner(cli: &List) -> Result<()> {
-    let mut sp = Spinner::new(Spinners::Line, "".into());
+    let mut sp = Spinner::new(Spinners::Line, String::new());
 
     let installed = Crates::from_include(
         &get_config_path(&cli.config),
-        &cli.include.iter().map(|x| x.as_str()).collect::<Vec<_>>(),
+        &cli.include.iter().map(String::as_str).collect::<Vec<_>>(),
     )?;
     sp.stop();
     eprint!("\x1b[2K\r");
@@ -287,7 +289,7 @@ fn inner(cli: &List) -> Result<()> {
             } else {
                 cli.kind
                     .par_iter()
-                    .map(|x| x.into())
+                    .map(Kind::into)
                     .collect::<IndexSet<_>>()
                     .into_iter()
                     .collect::<Vec<_>>()
@@ -307,13 +309,13 @@ fn inner(cli: &List) -> Result<()> {
                     if *k == cargo_list::Kind::External {
                         let (pinned, available) = if let Some(pinned) = &c.version_req {
                             if c.newer.is_empty() {
-                                (String::new(), c.available.to_string())
+                                (String::new(), c.available.clone())
                             } else {
                                 update_pinned += 1;
                                 (pinned.clone(), c.newer.join(", "))
                             }
                         } else {
-                            (String::new(), c.available.to_string())
+                            (String::new(), c.available.clone())
                         };
 
                         if c.outdated {
@@ -458,7 +460,7 @@ fn inner(cli: &List) -> Result<()> {
                         }
                         for (name, c) in &updates {
                             println!("{}\n", format!("## {name:?}").yellow().bold());
-                            shell.run(&[Command {
+                            let _ = shell.run(&[Command {
                                 command: c
                                     .update_command(
                                         cli.ignore_req && outdated_pinned.contains_key(name),
@@ -472,7 +474,7 @@ fn inner(cli: &List) -> Result<()> {
                         let mut c = cli.clone();
                         c.update = false;
                         c.outdated = false;
-                        c.include = updates.keys().map(|x| x.to_string()).collect();
+                        c.include = updates.keys().map(ToString::to_string).collect();
                         inner(&c)?;
                         if !cli.ignore_req && update_pinned > 0 {
                             println!(
@@ -506,7 +508,7 @@ fn inner(cli: &List) -> Result<()> {
                         }
                         for (name, c) in &outdated {
                             println!("{}\n", format!("## {name:?}").yellow().bold());
-                            shell.run(&[Command {
+                            let _ = shell.run(&[Command {
                                 command: c
                                     .update_command(
                                         cli.ignore_req && outdated_pinned.contains_key(*name),
