@@ -3,7 +3,7 @@
 //--------------------------------------------------------------------------------------------------
 
 use {
-    anyhow::{Result, anyhow},
+    anyhow::{Context, Result, anyhow},
     dirs::home_dir,
     rayon::prelude::*,
     regex::RegexSet,
@@ -21,10 +21,15 @@ use {
 //--------------------------------------------------------------------------------------------------
 
 static CLIENT: LazyLock<Client> = LazyLock::new(|| {
-    Client::builder()
-        .user_agent("cargo-list")
-        .build()
-        .expect("create reqwest client")
+    let mut builder = Client::builder().user_agent("cargo-list");
+
+    if let Ok(url) = std::env::var("CARGO_LIST_PROXY") {
+        eprintln!("- proxy is now {}", url);
+        let proxy = reqwest::Proxy::all(&url).expect("CARGO_LIST_PROXY invalid");
+        builder = builder.proxy(proxy);
+    }
+
+    builder.build().expect("create reqwest client")
 });
 
 //--------------------------------------------------------------------------------------------------
@@ -145,7 +150,11 @@ impl Crates {
         let errors = crates
             .installs
             .par_iter_mut()
-            .filter_map(|(k, v)| v.init(k, &crates.active_version).err())
+            .filter_map(|(k, v)| {
+                v.init(k, &crates.active_version)
+                    .with_context(|| format!("Failed to process crate '{k}'"))
+                    .err()
+            })
             .collect::<Vec<_>>();
         if errors.is_empty() {
             Ok(crates)
@@ -234,7 +243,11 @@ impl Crate {
         self.outdated_rust = self.rust_version != active_version;
 
         if self.kind == External {
-            (self.available, self.newer) = latest(&self.name, &self.version_req)?;
+            let installed_version = semver::Version::parse(&self.installed)?;
+            // If the installed version is a pre-release, we should include pre-releases in the search
+            let include_prerelease = !installed_version.pre.is_empty();
+            (self.available, self.newer) =
+                latest(&self.name, &self.version_req, include_prerelease)?;
             self.outdated = self.installed != self.available;
         }
 
@@ -310,8 +323,10 @@ impl Versions {
         self.versions.iter()
     }
 
-    fn available(&self) -> Vec<&Version> {
-        self.iter().filter(|x| x.is_available()).collect()
+    fn available(&self, include_prerelease: bool) -> Vec<&Version> {
+        self.iter()
+            .filter(|x| x.is_available(include_prerelease))
+            .collect()
     }
 }
 
@@ -322,8 +337,11 @@ struct Version {
 }
 
 impl Version {
-    fn is_available(&self) -> bool {
-        self.num.pre.is_empty() && !self.yanked
+    fn is_available(&self, include_prerelease: bool) -> bool {
+        if !include_prerelease && !self.num.pre.is_empty() {
+            return false;
+        }
+        !self.yanked
     }
 }
 
@@ -337,13 +355,18 @@ required version
 
 Returns an error if not able to get the versions via the REST API
 */
-pub fn latest(name: &str, version_req: &Option<String>) -> Result<(String, Vec<String>)> {
+pub fn latest(
+    name: &str,
+    version_req: &Option<String>,
+    include_prerelease: bool,
+) -> Result<(String, Vec<String>)> {
     let url = format!("https://crates.io/api/v1/crates/{name}/versions");
-    let res = CLIENT.get(url).send()?;
+    let res = CLIENT.get(&url).send()?;
+    let res = res.error_for_status()?;
     let versions = res.json::<Versions>()?;
-    let available = versions.available();
-    if let Some(req) = version_req {
-        let req = semver::VersionReq::parse(req)?;
+    let available = versions.available(include_prerelease);
+    if let Some(req_str) = version_req {
+        let req = semver::VersionReq::parse(req_str)?;
         let mut newer = vec![];
         for v in &available {
             if req.matches(&v.num) {
@@ -351,8 +374,24 @@ pub fn latest(name: &str, version_req: &Option<String>) -> Result<(String, Vec<S
             }
             newer.push(v.num.to_string());
         }
+        // If we haven't found a match yet, but we are allowing prereleases,
+        // it's possible the requirement string didn't explicitly opt-in to prereleases (like `^2.0.0`)
+        // but the available versions are prereleases (like `2.0.0-rc.37`).
+        // In this specific case, if we found *no* matching versions, we might want to be lenient,
+        // but semver::VersionReq is strict.
+
+        // However, if the user INSTALLED a prerelease, usually the version_req in .crates2.json
+        // reflects that (e.g. it might be `=2.0.0-rc.37` or `^2.0.0-rc.37`).
+        // If the error persists, it means even with prereleases included in `available`, none matched `req`.
+
         Err(anyhow!(
-            "Failed to find an available version matching the requirement"
+            "Failed to find an available version matching the requirement '{}' (available: {:?})",
+            req_str,
+            available
+                .iter()
+                .take(5)
+                .map(|v| v.num.to_string())
+                .collect::<Vec<_>>()
         ))
     } else if available.is_empty() {
         Err(anyhow!("Failed to find any available version"))
