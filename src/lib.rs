@@ -24,8 +24,17 @@ static CLIENT: LazyLock<Client> = LazyLock::new(|| {
     let mut builder = Client::builder().user_agent("cargo-list");
 
     if let Ok(url) = std::env::var("CARGO_LIST_PROXY") {
-        let proxy = reqwest::Proxy::all(&url).expect("CARGO_LIST_PROXY invalid");
-        builder = builder.proxy(proxy);
+        match reqwest::Proxy::all(&url) {
+            Ok(proxy) => {
+                builder = builder.proxy(proxy);
+            }
+            Err(err) => {
+                eprintln!(
+                    "warning: CARGO_LIST_PROXY is set but invalid ({}); ignoring proxy",
+                    err
+                );
+            }
+        }
     }
 
     builder.build().expect("create reqwest client")
