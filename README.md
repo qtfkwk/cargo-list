@@ -33,7 +33,7 @@ Options:
 
 ```text
 $ cargo list -V
-cargo-list 0.33.7
+cargo-list 0.34.0
 ```
 
 ### List installed external crates

@@ -70,6 +70,7 @@
     * 0.33.5 (2025-11-11): Update dependencies
     * 0.33.6 (2025-11-14): Update dependencies; clippy fixes
     * 0.33.7 (2026-03-03): Update dependencies
+* 0.34.0 (2026-03-12): Apply [PR #10] by [houseme]: add support for a web client proxy via `CARGO_LIST_PROXY` environment variable, include prerelease versions if the installed version is a prerelease version; update dependencies
 
 [`atty`]: https://crates.io/crates/atty
 [`bunt`]: https://crates.io/crates/bunt
@@ -91,4 +92,7 @@
 [x807x]: https://github.com/x807x
 [issue #4]: https://github.com/qtfkwk/cargo-list/issues/4
 [PR #5]: https://github.com/qtfkwk/cargo-list/pull/5
+
+[houseme]: https://github.com/houseme
+[PR #10]: https://github.com/qtfkwk/cargo-list/pull/10
 
