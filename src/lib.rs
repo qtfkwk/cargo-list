@@ -1,6 +1,7 @@
 #![doc = include_str!("../t/LIBRARY.md")]
 
 //--------------------------------------------------------------------------------------------------
+// Crates
 
 use {
     anyhow::{Context, Result, anyhow},
@@ -11,7 +12,7 @@ use {
     serde::{Deserialize, Serialize},
     sprint::{Command, Pipe, Shell},
     std::{
-        collections::BTreeMap,
+        collections::{BTreeMap, BTreeSet},
         fs::File,
         path::{Path, PathBuf},
         sync::LazyLock,
@@ -19,6 +20,7 @@ use {
 };
 
 //--------------------------------------------------------------------------------------------------
+// Statics
 
 static CLIENT: LazyLock<Client> = LazyLock::new(|| {
     let mut client = Client::builder().user_agent("cargo-list");
@@ -45,6 +47,7 @@ static CLIENT: LazyLock<Client> = LazyLock::new(|| {
 });
 
 //--------------------------------------------------------------------------------------------------
+// Enums
 
 /// Crate kind
 #[derive(Debug, Default, Serialize, Eq, PartialEq, Hash, Clone)]
@@ -74,6 +77,7 @@ impl Kind {
 }
 
 //--------------------------------------------------------------------------------------------------
+// Structs
 
 /// All installed crates
 #[derive(Debug, Serialize, Deserialize)]
@@ -181,55 +185,115 @@ impl Crates {
             )))
         }
     }
+
+    /// Return crate options
+    #[must_use]
+    pub fn config(&self) -> BTreeMap<String, CrateOptions> {
+        self.installs
+            .values()
+            .map(|x| (x.name.clone(), x.options()))
+            .collect()
+    }
+
+    /**
+    Save configuration file
+
+    # Errors
+
+    Returns an error if fails to serialize crate options or write the configuration file.
+    */
+    pub fn save(&self, path: &Path) -> Result<()> {
+        match toml::to_string(&self.config()) {
+            Ok(content) => match std::fs::write(path, &content) {
+                Ok(()) => Ok(()),
+                Err(e) => Err(anyhow!(
+                    "Failed to write configuration file `{}`: `{e}`",
+                    path.display(),
+                )),
+            },
+            Err(e) => Err(anyhow!("Failed to serialize to TOML: `{e}`")),
+        }
+    }
+
+    /// Set locked crates from a deserialized configuration file
+    pub fn set_locked(&mut self, config: &BTreeMap<String, CrateOptions>) {
+        for c in self.installs.values_mut() {
+            if let Some(o) = config.get(c.name.as_str()) {
+                c.locked = o.locked;
+            }
+        }
+    }
+
+    /**
+    Lock crates
+
+    # Errors
+
+    Returns an error if a crate name is not valid.
+    */
+    pub fn set_locks(&mut self, crates: &BTreeSet<String>) -> Result<()> {
+        for c in self.installs.values_mut() {
+            if crates.contains(&c.name) {
+                c.locked = true;
+            }
+        }
+
+        Ok(())
+    }
 }
 
-//--------------------------------------------------------------------------------------------------
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 /// Individual installed crate
 #[derive(Debug, Serialize, Deserialize)]
 #[allow(clippy::struct_excessive_bools)]
 pub struct Crate {
-    #[serde(skip_deserializing)]
+    #[serde(skip)]
     pub name: String,
+
+    #[serde(default)]
+    locked: bool,
 
     #[serde(skip_deserializing)]
     pub kind: Kind,
 
-    #[serde(skip_deserializing)]
+    #[serde(skip)]
     pub installed: String,
 
-    #[serde(skip_deserializing)]
+    #[serde(skip)]
     installed_: Option<semver::Version>,
 
     #[serde(skip_deserializing)]
     prerelease: bool,
 
-    #[serde(skip_deserializing)]
+    #[serde(skip)]
     pub available: String,
 
-    #[serde(skip_deserializing)]
+    #[serde(skip)]
     pub newer: Vec<String>,
 
-    #[serde(skip_deserializing)]
+    #[serde(skip)]
     pub rust_version: String,
 
-    #[serde(skip_deserializing)]
+    #[serde(skip)]
     pub outdated: bool,
 
-    #[serde(skip_deserializing)]
+    #[serde(skip)]
     pub outdated_rust: bool,
 
-    #[serde(skip_deserializing)]
+    #[serde(skip)]
     source: String,
 
+    #[serde(skip_serializing)]
     pub version_req: Option<String>,
+
     bins: Vec<String>,
     features: Vec<String>,
     all_features: bool,
     no_default_features: bool,
     profile: String,
     target: String,
-    rustc: String,
+    rustc: Option<String>,
 }
 
 impl Crate {
@@ -251,14 +315,16 @@ impl Crate {
 
         self.kind = Kind::from(&self.source);
 
-        self.rust_version = self
-            .rustc
-            .strip_prefix("rustc ")
-            .unwrap()
-            .split_once(' ')
-            .unwrap()
-            .0
-            .to_string();
+        self.rust_version = if let Some(s) = &self.rustc {
+            s.strip_prefix("rustc ")
+                .unwrap()
+                .split_once(' ')
+                .unwrap()
+                .0
+                .to_string()
+        } else {
+            String::from("?")
+        };
 
         self.outdated_rust = self.rust_version != active_version;
 
@@ -319,11 +385,28 @@ impl Crate {
             r.push(&self.name);
         }
 
+        if self.locked {
+            r.push("--locked");
+        }
+
         r.into_iter().map(String::from).collect()
+    }
+
+    fn options(&self) -> CrateOptions {
+        CrateOptions {
+            locked: self.locked,
+        }
     }
 }
 
-//--------------------------------------------------------------------------------------------------
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+#[derive(Deserialize, Serialize)]
+pub struct CrateOptions {
+    locked: bool,
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 /**
 Deserialize the crate version object returned via the crates.io API
@@ -344,6 +427,8 @@ impl Versions {
     }
 }
 
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
 #[derive(Debug, Deserialize)]
 struct Version {
     num: semver::Version,
@@ -360,6 +445,7 @@ impl Version {
 }
 
 //--------------------------------------------------------------------------------------------------
+// Functions
 
 /**
 Get the latest available (not prerelease or yanked) version(s) for a crate, optionally matching a
@@ -417,6 +503,8 @@ pub fn latest(
     }
 }
 
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
 /// Get the active toolchain
 #[must_use]
 pub fn active_toolchain() -> String {
@@ -435,6 +523,8 @@ pub fn active_toolchain() -> String {
         String::new()
     }
 }
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 /**
 Expand a path with an optional tilde (`~`)

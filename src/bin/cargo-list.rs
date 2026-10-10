@@ -1,13 +1,19 @@
+//--------------------------------------------------------------------------------------------------
+// Crates
+
 use {
-    anyhow::Result,
-    cargo_list::{Crates, expanduser},
+    anyhow::{Result, anyhow},
+    cargo_list::{CrateOptions, Crates, expanduser},
     clap::{Parser, ValueEnum, builder::TypedValueParser},
     clap_cargo::style::CLAP_STYLING,
     indexmap::IndexSet,
     rayon::prelude::*,
     spinners::{Spinner, Spinners},
     sprint::{Command, Shell},
-    std::collections::BTreeMap,
+    std::{
+        collections::{BTreeMap, BTreeSet},
+        path::PathBuf,
+    },
     veg::colored::{ColoredString, Colorize, Veg},
 };
 
@@ -15,6 +21,7 @@ use {
 use pager2::Pager;
 
 //--------------------------------------------------------------------------------------------------
+// Enums
 
 #[derive(Clone, ValueEnum)]
 enum Kind {
@@ -35,7 +42,7 @@ impl Kind {
     }
 }
 
-//--------------------------------------------------------------------------------------------------
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 /// List and update installed crates
 #[derive(Parser)]
@@ -45,72 +52,7 @@ enum Cli {
     List(List),
 }
 
-#[derive(clap::Args, Clone)]
-#[allow(clippy::struct_excessive_bools)]
-#[command(version, long_about = None, max_term_width = 80)]
-struct List {
-    /// Output format
-    #[arg(
-        short = 'f',
-        value_name = "FORMAT",
-        default_value_t = Markdown,
-        value_parser = clap::builder::PossibleValuesParser::new(
-            ["json", "json-pretty", "md", "rust", "rust-pretty"],
-        ).map(|s| s.parse::<OutputFormat>().unwrap()),
-        conflicts_with = "update",
-    )]
-    output_format: OutputFormat,
-
-    /// Kind(s)
-    #[arg(short, value_enum, default_value = "external")]
-    kind: Vec<Kind>,
-
-    /// All kinds
-    #[arg(short)]
-    all_kinds: bool,
-
-    /// Hide up-to-date crates
-    #[arg(short, long)]
-    outdated: bool,
-
-    /// Ignore version requirements
-    #[arg(short = 'I')]
-    ignore_req: bool,
-
-    /// Consider a crate to be outdated if compiled with a Rust version
-    /// different than the active toolchain
-    #[arg(short = 'R')]
-    outdated_rust: bool,
-
-    /// Update outdated crates
-    #[arg(short, long)]
-    update: bool,
-
-    /// Dry run
-    #[arg(short = 'n', long)]
-    dry_run: bool,
-
-    /**
-    Cargo install metadata file
-    (falls back to `~/.cargo/.crates2.json` if `$CARGO_HOME` is unset)
-    */
-    #[arg(
-        short,
-        value_name = "PATH",
-        default_value = "$CARGO_HOME/.crates2.json"
-    )]
-    config: String,
-
-    /// Print readme
-    #[arg(short, long)]
-    readme: bool,
-
-    /// List/update crates matching given pattern(s)
-    #[arg(value_name = "PATTERN")]
-    include: Vec<String>,
-}
-
-//--------------------------------------------------------------------------------------------------
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 #[derive(Clone)]
 enum OutputFormat {
@@ -152,6 +94,82 @@ impl std::str::FromStr for OutputFormat {
 }
 
 //--------------------------------------------------------------------------------------------------
+// Structs
+
+#[derive(clap::Args, Clone)]
+#[allow(clippy::struct_excessive_bools)]
+#[command(version, long_about = None, max_term_width = 80)]
+struct List {
+    /// Output format
+    #[arg(
+        short = 'f',
+        value_name = "FORMAT",
+        default_value_t = Markdown,
+        value_parser = clap::builder::PossibleValuesParser::new(
+            ["json", "json-pretty", "md", "rust", "rust-pretty"],
+        ).map(|s| s.parse::<OutputFormat>().unwrap()),
+        conflicts_with = "update",
+    )]
+    output_format: OutputFormat,
+
+    /// Kind(s)
+    #[arg(short, value_enum, default_value = "external")]
+    kind: Vec<Kind>,
+
+    /// All kinds
+    #[arg(short)]
+    all_kinds: bool,
+
+    /// Hide up-to-date crates
+    #[arg(short, long)]
+    outdated: bool,
+
+    /// Ignore version requirements to update pinned crate(s)
+    #[arg(short = 'I')]
+    ignore_req: bool,
+
+    /// Consider a crate to be outdated if compiled with a Rust version
+    /// different than the active toolchain
+    #[arg(short = 'R')]
+    outdated_rust: bool,
+
+    /// Update outdated crates
+    #[arg(short, long)]
+    update: bool,
+
+    /// Dry run
+    #[arg(short = 'n', long)]
+    dry_run: bool,
+
+    /**
+    Cargo install metadata file
+    (falls back to `~/.cargo/.crates2.json` if `$CARGO_HOME` is unset)
+    */
+    #[arg(
+        short,
+        value_name = "PATH",
+        default_value = "$CARGO_HOME/.crates2.json"
+    )]
+    config: String,
+
+    /// Install crate(s)
+    #[arg(long)]
+    install: bool,
+
+    /// Locked (only relevant to `--install`)
+    #[arg(long)]
+    locked: bool,
+
+    /// Print readme
+    #[arg(short, long)]
+    readme: bool,
+
+    /// List/update crates matching given pattern(s)
+    #[arg(value_name = "PATTERN")]
+    include: Vec<String>,
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 #[derive(Debug)]
 struct Row {
@@ -203,6 +221,7 @@ impl veg::colored::Table for Row {
 }
 
 //--------------------------------------------------------------------------------------------------
+// Functions
 
 fn main() -> Result<()> {
     let Cli::List(cli) = Cli::parse();
@@ -215,19 +234,64 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
+    if cli.install {
+        println!("{}\n", "# Install".magenta().bold());
+
+        let mut shell = Shell {
+            dry_run: cli.dry_run,
+            ..Default::default()
+        };
+
+        if cli.dry_run {
+            shell.info = String::from("bash");
+        }
+
+        let mut locks = BTreeSet::new();
+
+        for i in &cli.include {
+            println!("{}\n", format!("## {i:?}").yellow().bold());
+
+            let _ = shell.run(&[Command {
+                command: if cli.locked {
+                    locks.insert({
+                        let mut name = i.as_str();
+
+                        if name.contains('@') {
+                            (name, _) = name.split_once('@').expect("split @");
+                        }
+
+                        if name.contains(' ') {
+                            (name, _) = name.split_once(' ').expect("split space");
+                        }
+
+                        name.to_string()
+                    });
+
+                    format!("cargo install --locked {i}")
+                } else {
+                    format!("cargo install {i}")
+                },
+                ..Default::default()
+            }]);
+        }
+
+        if cli.locked {
+            let (mut installed, config_file) = load_config_file(&cli)?;
+            installed.set_locks(&locks)?;
+            installed.save(&config_file)?;
+        }
+
+        return Ok(());
+    }
+
     inner(&cli)
 }
 
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
 #[allow(clippy::too_many_lines)]
 fn inner(cli: &List) -> Result<()> {
-    let mut sp = Spinner::new(Spinners::Line, String::new());
-
-    let installed = Crates::from_include(
-        &get_config_path(&cli.config),
-        &cli.include.iter().map(String::as_str).collect::<Vec<_>>(),
-    )?;
-    sp.stop();
-    eprint!("\x1b[2K\r");
+    let (installed, _config_file) = load_config_file(cli)?;
 
     let all = installed.crates();
 
@@ -273,15 +337,15 @@ fn inner(cli: &List) -> Result<()> {
                 if cli.include.is_empty() {
                     println!("{}\n", "*No crates are installed.*".yellow().italic());
                     std::process::exit(1);
-                } else {
-                    println!(
-                        "{}\n",
-                        "*No crates matching given pattern(s) are installed.*"
-                            .yellow()
-                            .italic()
-                    );
-                    std::process::exit(2);
                 }
+
+                println!(
+                    "{}\n",
+                    "*No crates matching given pattern(s) are installed.*"
+                        .yellow()
+                        .italic()
+                );
+                std::process::exit(2);
             }
 
             let kinds = if cli.all_kinds {
@@ -318,72 +382,107 @@ fn inner(cli: &List) -> Result<()> {
                             (String::new(), c.available.clone())
                         };
 
-                        if c.outdated {
-                            t.push(Row::new(
-                                number.to_string().normal(),
-                                c.name.normal(),
-                                pinned.normal(),
-                                c.installed.red(),
-                                available.bold(),
-                                if c.outdated_rust {
-                                    c.rust_version.red()
-                                } else {
-                                    c.rust_version.green()
-                                },
-                                cli.outdated_rust,
-                            ));
-                            number += 1;
-                            outdated += 1;
-                        } else if cli.outdated_rust {
+                        if cli.outdated_rust {
                             if c.outdated_rust {
+                                // Include crate compiled with outdated Rust
                                 t.push(Row::new(
                                     number.to_string().normal(),
                                     c.name.normal(),
                                     pinned.normal(),
                                     c.installed.green(),
-                                    "".normal(),
+                                    if pinned.is_empty() {
+                                        "".normal()
+                                    } else {
+                                        available.bold().yellow()
+                                    },
                                     c.rust_version.red(),
                                     cli.outdated_rust,
                                 ));
                                 number += 1;
                                 outdated += 1;
-                            } else if !cli.outdated {
+                            } else if cli.ignore_req && !c.newer.is_empty() {
+                                // Include outdated pinned
                                 t.push(Row::new(
                                     number.to_string().normal(),
                                     c.name.normal(),
                                     pinned.normal(),
                                     c.installed.green(),
-                                    "".normal(),
+                                    if pinned.is_empty() {
+                                        "".normal()
+                                    } else {
+                                        available.bold().yellow()
+                                    },
+                                    c.rust_version.green(),
+                                    cli.outdated_rust,
+                                ));
+                                number += 1;
+                            } else if !cli.outdated {
+                                // Include every crate
+                                t.push(Row::new(
+                                    number.to_string().normal(),
+                                    c.name.normal(),
+                                    pinned.normal(),
+                                    c.installed.green(),
+                                    if pinned.is_empty() {
+                                        "".normal()
+                                    } else {
+                                        available.bold().yellow()
+                                    },
                                     c.rust_version.green(),
                                     cli.outdated_rust,
                                 ));
                                 number += 1;
                             }
-                        } else if cli.ignore_req && !c.newer.is_empty() {
-                            t.push(Row::new(
-                                number.to_string().normal(),
-                                c.name.normal(),
-                                pinned.normal(),
-                                c.installed.red(),
-                                c.newer[0].bold(),
-                                "".normal(),
-                                cli.outdated_rust,
-                            ));
-                            number += 1;
-                            outdated += 1;
-                        } else if !cli.outdated {
-                            t.push(Row::new(
-                                number.to_string().normal(),
-                                c.name.normal(),
-                                pinned.normal(),
-                                c.installed.green(),
-                                "".normal(),
-                                "".normal(),
-                                cli.outdated_rust,
-                            ));
-                            number += 1;
+                        } else {
+                            // No -R...
+                            if c.outdated {
+                                // Include outdated crate
+                                t.push(Row::new(
+                                    number.to_string().normal(),
+                                    c.name.normal(),
+                                    pinned.normal(),
+                                    c.installed.red(),
+                                    available.bold(),
+                                    if c.outdated_rust {
+                                        c.rust_version.red()
+                                    } else {
+                                        c.rust_version.green()
+                                    },
+                                    cli.outdated_rust,
+                                ));
+                                number += 1;
+                                outdated += 1;
+                            } else if cli.ignore_req && !c.newer.is_empty() {
+                                // Include outdated pinned crate
+                                t.push(Row::new(
+                                    number.to_string().normal(),
+                                    c.name.normal(),
+                                    pinned.normal(),
+                                    c.installed.yellow(),
+                                    c.newer[0].bold().green(),
+                                    "".normal(),
+                                    cli.outdated_rust,
+                                ));
+                                number += 1;
+                            } else if !cli.outdated {
+                                // Include every crate
+                                t.push(Row::new(
+                                    number.to_string().normal(),
+                                    c.name.normal(),
+                                    pinned.normal(),
+                                    c.installed.green(),
+                                    if pinned.is_empty() {
+                                        "".normal()
+                                    } else {
+                                        available.bold().yellow()
+                                    },
+                                    "".normal(),
+                                    cli.outdated_rust,
+                                ));
+                                number += 1;
+                            }
                         }
-                    } else if !cli.outdated || c.kind == cargo_list::Kind::Git {
+                    } else if c.kind == cargo_list::Kind::Git || !cli.outdated {
                         t.push(Row::new(
                             number.to_string().normal(),
                             c.name.normal(),
@@ -422,7 +521,7 @@ fn inner(cli: &List) -> Result<()> {
                         );
                     }
 
-                    if !cli.ignore_req && update_pinned > 0 {
+                    if update_pinned > 0 {
                         println!(
                             "{}\n",
                             format!(
@@ -550,6 +649,8 @@ fn inner(cli: &List) -> Result<()> {
     Ok(())
 }
 
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
 fn get_config_path(config: &str) -> std::path::PathBuf {
     if let Some(s) = config.strip_prefix("$CARGO_HOME/") {
         // Default
@@ -563,5 +664,82 @@ fn get_config_path(config: &str) -> std::path::PathBuf {
     } else {
         // User provided another custom path
         std::path::PathBuf::from(config)
+    }
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+fn load_config_file(cli: &List) -> Result<(Crates, PathBuf)> {
+    let mut sp = Spinner::new(Spinners::Line, String::new());
+
+    let mut installed = Crates::from_include(
+        &get_config_path(&cli.config),
+        &cli.include.iter().map(String::as_str).collect::<Vec<_>>(),
+    )?;
+
+    let config_dir = dirs::config_dir().unwrap().join(env!("CARGO_PKG_NAME"));
+    let config_file = config_dir.join("config.toml");
+
+    if !config_dir.exists() {
+        if let Err(e) = std::fs::create_dir_all(&config_dir) {
+            sp.stop();
+            eprint!("\x1b[2K\r");
+            return Err(anyhow!(
+                "Failed to create the configuration directory `{}`: `{e}`!",
+                config_dir.display(),
+            ));
+        }
+    } else if !config_dir.is_dir() {
+        sp.stop();
+        eprint!("\x1b[2K\r");
+        return Err(anyhow!(
+            "Configuration directory `{}` path exists but is not a directory!",
+            config_dir.display(),
+        ));
+    }
+
+    if config_file.exists() {
+        if config_file.is_file() {
+            match std::fs::read_to_string(&config_file) {
+                Ok(s) => match toml::from_str::<BTreeMap<String, CrateOptions>>(&s) {
+                    Ok(config) => {
+                        installed.set_locked(&config);
+                        sp.stop();
+                        eprint!("\x1b[2K\r");
+
+                        Ok((installed, config_file))
+                    }
+                    Err(e) => {
+                        sp.stop();
+                        eprint!("\x1b[2K\r");
+                        Err(anyhow!(
+                            "Configuration file `{}` is not valid TOML format: `{e}`!",
+                            config_file.display(),
+                        ))
+                    }
+                },
+                Err(e) => {
+                    sp.stop();
+                    eprint!("\x1b[2K\r");
+                    Err(anyhow!("Could not read configuration file: `{e}`!"))
+                }
+            }
+        } else {
+            sp.stop();
+            eprint!("\x1b[2K\r");
+            Err(anyhow!(
+                "Configuration file `{}` path exists but is not a file!",
+                config_file.display(),
+            ))
+        }
+    } else {
+        // Create a configuration file
+        if let Err(e) = installed.save(&config_file) {
+            sp.stop();
+            eprint!("\x1b[2K\r");
+            Err(e)
+        } else {
+            load_config_file(cli)
+        }
     }
 }

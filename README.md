@@ -18,7 +18,7 @@ Options:
                   external]
   -a              All kinds
   -o, --outdated  Hide up-to-date crates
-  -I              Ignore version requirements
+  -I              Ignore version requirements to update pinned crate(s)
   -R              Consider a crate to be outdated if compiled with a Rust
                   version different than the active toolchain
   -u, --update    Update outdated crates
@@ -26,6 +26,8 @@ Options:
   -c <PATH>       Cargo install metadata file (falls back to
                   `~/.cargo/.crates2.json` if `$CARGO_HOME` is unset) [default:
                   $CARGO_HOME/.crates2.json]
+      --install   Install crate(s)
+      --locked    Locked (only relevant to `--install`)
   -r, --readme    Print readme
   -h, --help      Print help (see more with '--help')
   -V, --version   Print version
@@ -33,7 +35,7 @@ Options:
 
 ```text
 $ cargo list -V
-cargo-list 0.34.1
+cargo-list 0.35.0
 ```
 
 ### List installed external crates

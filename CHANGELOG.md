@@ -72,6 +72,7 @@
     * 0.33.7 (2026-03-03): Update dependencies
 * 0.34.0 (2026-03-12): Apply [PR #10] by [houseme]: add support for a web client proxy via `CARGO_LIST_PROXY` environment variable, include prerelease versions if the installed version is a prerelease version; update dependencies
     * 0.34.1 (2026-04-17): Update dependencies
+* 0.35.0 (2026-10-10): Fix [issue #11](https://github.com/qtfkwk/cargo-list/issues/11) ("Locked" crates...); show available versions for pinned crates; update dependencies
 
 [`atty`]: https://crates.io/crates/atty
 [`bunt`]: https://crates.io/crates/bunt
