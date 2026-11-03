@@ -252,7 +252,7 @@ pub struct Crate {
     pub name: String,
 
     #[serde(default)]
-    locked: bool,
+    pub locked: bool,
 
     #[serde(skip_deserializing)]
     pub kind: Kind,

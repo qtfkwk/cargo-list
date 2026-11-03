@@ -178,17 +178,20 @@ struct Row {
     pinned: ColoredString,
     installed: ColoredString,
     available: ColoredString,
+    locked: ColoredString,
     rust: ColoredString,
     outdated_rust: bool,
 }
 
 impl Row {
+    #[allow(clippy::too_many_arguments)]
     fn new(
         number: ColoredString,
         name: ColoredString,
         pinned: ColoredString,
         installed: ColoredString,
         available: ColoredString,
+        locked: ColoredString,
         rust: ColoredString,
         outdated_rust: bool,
     ) -> Box<Row> {
@@ -198,6 +201,7 @@ impl Row {
             pinned,
             installed,
             available,
+            locked,
             rust,
             outdated_rust,
         })
@@ -212,6 +216,7 @@ impl veg::colored::Table for Row {
             self.pinned.clone(),
             self.installed.clone(),
             self.available.clone(),
+            self.locked.clone(),
         ];
         if self.outdated_rust {
             r.push(self.rust.clone());
@@ -365,15 +370,15 @@ fn inner(cli: &List) -> Result<()> {
                 let mut update_pinned = 0;
                 let mut number = 1;
                 let mut t = if cli.outdated_rust {
-                    Veg::table("#|Name|Pinned|Installed|Available|Rust\n-:|-|-|-|-|-")
+                    Veg::table("#|Name|Pinned|Installed|Available|Locked|Rust\n-:|-|-|-|-|-|-")
                 } else {
-                    Veg::table("#|Name|Pinned|Installed|Available\n-:|-|-|-|-")
+                    Veg::table("#|Name|Pinned|Installed|Available|Locked\n-:|-|-|-|-|-")
                 };
                 for c in all.values().filter(|x| x.kind == *k) {
                     if *k == cargo_list::Kind::External {
                         let (pinned, available) = if let Some(pinned) = &c.version_req {
                             if c.newer.is_empty() {
-                                (String::new(), c.available.clone())
+                                (pinned.clone(), c.available.clone())
                             } else {
                                 update_pinned += 1;
                                 (pinned.clone(), c.newer.join(", "))
@@ -396,6 +401,11 @@ fn inner(cli: &List) -> Result<()> {
                                         available.bold().yellow()
                                     },
                                     c.rust_version.red(),
+                                    if c.locked {
+                                        "✔".bold().green()
+                                    } else {
+                                        "".normal()
+                                    },
                                     cli.outdated_rust,
                                 ));
                                 number += 1;
@@ -411,6 +421,11 @@ fn inner(cli: &List) -> Result<()> {
                                         "".normal()
                                     } else {
                                         available.bold().yellow()
+                                    },
+                                    if c.locked {
+                                        "✔".bold().green()
+                                    } else {
+                                        "".normal()
                                     },
                                     c.rust_version.green(),
                                     cli.outdated_rust,
@@ -428,6 +443,11 @@ fn inner(cli: &List) -> Result<()> {
                                     } else {
                                         available.bold().yellow()
                                     },
+                                    if c.locked {
+                                        "✔".bold().green()
+                                    } else {
+                                        "".normal()
+                                    },
                                     c.rust_version.green(),
                                     cli.outdated_rust,
                                 ));
@@ -443,6 +463,11 @@ fn inner(cli: &List) -> Result<()> {
                                     pinned.normal(),
                                     c.installed.red(),
                                     available.bold(),
+                                    if c.locked {
+                                        "✔".bold().green()
+                                    } else {
+                                        "".normal()
+                                    },
                                     if c.outdated_rust {
                                         c.rust_version.red()
                                     } else {
@@ -460,6 +485,11 @@ fn inner(cli: &List) -> Result<()> {
                                     pinned.normal(),
                                     c.installed.yellow(),
                                     c.newer[0].bold().green(),
+                                    if c.locked {
+                                        "✔".bold().green()
+                                    } else {
+                                        "".normal()
+                                    },
                                     "".normal(),
                                     cli.outdated_rust,
                                 ));
@@ -476,6 +506,11 @@ fn inner(cli: &List) -> Result<()> {
                                     } else {
                                         available.bold().yellow()
                                     },
+                                    if c.locked {
+                                        "✔".bold().green()
+                                    } else {
+                                        "".normal()
+                                    },
                                     "".normal(),
                                     cli.outdated_rust,
                                 ));
@@ -489,6 +524,11 @@ fn inner(cli: &List) -> Result<()> {
                             "".normal(),
                             c.installed.cyan(),
                             "".normal(),
+                            if c.locked {
+                                "✔".bold().green()
+                            } else {
+                                "".normal()
+                            },
                             "".normal(),
                             cli.outdated_rust,
                         ));
@@ -672,10 +712,7 @@ fn get_config_path(config: &str) -> std::path::PathBuf {
 fn load_config_file(cli: &List) -> Result<(Crates, PathBuf)> {
     let mut sp = Spinner::new(Spinners::Line, String::new());
 
-    let mut installed = Crates::from_include(
-        &get_config_path(&cli.config),
-        &cli.include.iter().map(String::as_str).collect::<Vec<_>>(),
-    )?;
+    let mut installed = Crates::from_include(&get_config_path(&cli.config), &[])?;
 
     let config_dir = dirs::config_dir().unwrap().join(env!("CARGO_PKG_NAME"));
     let config_file = config_dir.join("config.toml");
