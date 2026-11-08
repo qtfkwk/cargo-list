@@ -1,38 +1,160 @@
 # CLI
 
 ```text
+$ cargo list -V
+cargo-list 0.38.0
+```
+
+```text
 $ cargo list -h
 List and update installed crates
 
 Usage: cargo list [OPTIONS] [PATTERN]...
 
 Arguments:
-  [PATTERN]...  List/update crates matching given pattern(s)
+  [PATTERN]...  List/update installed crates matching given pattern(s); if
+                `--install` use the actual crate name
 
 Options:
-  -f <FORMAT>          Output format [default: markdown] [possible values:
-                       markdown, json, json-pretty, rust, rust-pretty]
-  -l, --local          Local crates
-  -g, --git            Git crates
-  -e, --external       External crates (default)
-  -a, --all            Local, git, and external crates
-  -o, --outdated       Only show *outdated* crates
-  -I, --ignore-req     Ignore pinned version requirements
+  -l, --local          Include local crates
+  -g, --git            Include git crates
+  -e, --external       Include external crates (default)
+  -a, --all            Include local, git, and external crates; same as `-lge`
+  -o, --outdated       Only show *outdated* crates / hide up-to-date crates
+  -p, --protocol <P>   Protocol [default: sparse] [possible values: sparse,
+                       rest-api]
+  -I, --ignore-req     Ignore pinned version requirements when deciding if a
+                       crate is *outdated* for the purpose of listing or
+                       updating the crate
   -R, --outdated-rust  Consider a crate to be outdated if compiled with a Rust
                        version different than the active toolchain
   -u, --update         Update outdated crates
-  -n, --dry-run        Dry run (only relevant to `-u`)
-      --install        Install crate(s)
+  -n, --dry-run        Dry run (only relevant to `-u` / `--update`)
+  -f, --format <F>     Output format [default: markdown] [possible values:
+                       markdown, json, json-pretty, rust, rust-pretty]
+      --install        Install one or more crate(s)
       --locked         Locked (only relevant to `--install`)
   -r, --readme         Print readme
-  -h, --help           Print help
+  -c, --config         Show running configuration and exit
+  -h, --help           Print help (see more with '--help')
   -V, --version        Print version
 ```
 
 ```text
-$ cargo list -V
-cargo-list 0.37.0
+$ cargo list --help
+List and update installed crates
+
+Usage: cargo list [OPTIONS] [PATTERN]...
+
+Arguments:
+  [PATTERN]...
+          List/update installed crates matching given pattern(s); if `--install`
+          use the actual crate name
+
+Options:
+  -l, --local
+          Include local crates
+
+  -g, --git
+          Include git crates
+
+  -e, --external
+          Include external crates (default)
+
+  -a, --all
+          Include local, git, and external crates; same as `-lge`
+
+  -o, --outdated
+          Only show *outdated* crates / hide up-to-date crates
+
+  -p, --protocol <P>
+          Protocol
+
+          Possible values:
+          - sparse:
+            <https://doc.rust-lang.org/cargo/reference/registry-index.html>
+          - rest-api:
+            <https://doc.rust-lang.org/cargo/reference/registry-web-api.html>
+          
+          [default: sparse]
+
+  -I, --ignore-req
+          Ignore pinned version requirements when deciding if a crate is
+          *outdated* for the purpose of listing or updating the crate
+
+  -R, --outdated-rust
+          Consider a crate to be outdated if compiled with a Rust version
+          different than the active toolchain
+
+  -u, --update
+          Update outdated crates
+
+  -n, --dry-run
+          Dry run (only relevant to `-u` / `--update`)
+
+  -f, --format <F>
+          Output format
+          
+          [default: markdown]
+          [possible values: markdown, json, json-pretty, rust, rust-pretty]
+
+      --install
+          Install one or more crate(s)
+          
+          Same as `cargo install ...` except when combined with `--locked` which
+          sets the locked status in the configuration file
+
+      --locked
+          Locked (only relevant to `--install`)
+
+  -r, --readme
+          Print readme
+
+  -c, --config
+          Show running configuration and exit
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+  -V, --version
+          Print version
 ```
+
+## Protocol
+
+The default protocol used to get the latest available upstream crate versions is the [sparse index].
+
+The previous default protocol was the [REST API], which is still available and `cargo-list` can use
+it temporarily via `-p rest-api` or by default by setting `protocol = "rest-api"` in the
+configuration file.
+Using the REST API for retrieving the latest available versions is quite excessive because it (a)
+demands server-side processing, (b) can be done perfectly well via the sparse index, and (c) is
+intended for other use cases (like `cargo search`, `cargo info`, etc).
+
+Note that `cargo-list` has never had nor any plans exist to support the legacy Git index.
+
+See also the [Data Access Policy] at Crates.io.
+
+> [!WARNING]
+> The REST API does have a limit, will respond with [HTTP 429 Too Many Requests] errors if you
+> exceed it, and `cargo list` prints them to stderr and exits with error code 3 when they occur.
+> The [published limit](https://crates.io/data-access#api) is "a maximum of 1 request per second,"
+> however `cargo-list` typically sends 1--2 requests per external crate every time it runs.
+> The 429 errors are not observed until running `cargo list` with enough installed crates and/or
+> times to produce several hundred requests inside a short window (1--5 minutes).
+> The throttle clears after a few minutes.
+
+[sparse index]:
+https://doc.rust-lang.org/cargo/reference/registry-index.html
+
+[REST API]:
+https://doc.rust-lang.org/cargo/reference/registry-web-api.html
+
+[Data Access Policy]:
+https://crates.io/data-access
+
+[HTTP 429 Too Many Requests]:
+https://datatracker.ietf.org/doc/html/rfc6585#section-4
 
 ## List installed external crates
 
@@ -108,6 +230,12 @@ cargo list -oeI
 
 ```bash
 cargo list -oeR
+```
+
+## List outdated external crates (ignore pinned version requirements and include crates compiled with old Rust)
+
+```bash
+cargo list -oeIR
 ```
 
 ## Update outdated external crates (ignore pinned version requirements and include crates compiled with old Rust)
@@ -212,12 +340,30 @@ cargo list -f rust -o
 cargo list -f rust-pretty -o
 ```
 
+## Enable debug logging
+
+```bash
+RUST_LOG=reqwest=debug,hyper=debug cargo list
+```
+
+## Show running configuration
+
+```bash
+cargo list -c
+# Configuration
+
+- Configuration file: `/home/user/.config/cargo-list/config.toml`
+- Protocol: `Sparse`
+- Kinds: `{External}`
+
+```
+
 # Library
 
 ```rust
 use cargo_list::Crates;
 
-match Crates::new(&[], &cargo_list::Kind::all()) {
+match Crates::new(&[], &cargo_list::Kind::all(), None) {
     Ok(crates) => {
         if crates.is_empty() {
             println!("No crates installed!");

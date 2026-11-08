@@ -24,7 +24,7 @@ fn get_rust_version() -> Result<()> {
 
 #[test]
 fn crates_new() -> Result<()> {
-    let crates = cargo_list::Crates::new(&[], &cargo_list::Kind::all())?;
+    let crates = cargo_list::Crates::new(&[], &cargo_list::Kind::all(), None)?;
 
     assert!(!crates.is_empty());
 

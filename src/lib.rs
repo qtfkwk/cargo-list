@@ -5,14 +5,16 @@
 
 use {
     anyhow::{Result, anyhow},
-    clap::ValueEnum,
+    clap::{Parser, ValueEnum},
+    clap_cargo::style::CLAP_STYLING,
     dirs::home_dir,
     indexmap::IndexSet,
     rayon::prelude::*,
     regex::RegexSet,
     reqwest::blocking::Client,
     serde::{Deserialize, Serialize},
-    sprint::{Command, Pipe, Shell},
+    spinners::{Spinner, Spinners},
+    sprint::{Pipe, Shell},
     std::{
         collections::{BTreeMap, BTreeSet},
         fmt::Write,
@@ -20,8 +22,18 @@ use {
         path::PathBuf,
         sync::LazyLock,
     },
-    veg::colored::ColoredString,
+    veg::colored::{ColoredString, Colorize, Veg},
 };
+
+#[cfg(unix)]
+use pager2::Pager;
+
+//--------------------------------------------------------------------------------------------------
+// Constants
+
+const README: &str = include_str!("../README.md");
+
+const TABLE_HEAD: &str = "#|Name|Pinned|Installed|Available|Locked\n-:|-|-|-|-|-\n\n";
 
 //--------------------------------------------------------------------------------------------------
 // Statics
@@ -50,7 +62,8 @@ static CLIENT: LazyLock<Client> = LazyLock::new(|| {
     client.build().expect("create reqwest client")
 });
 
-static CONFIG_FILE: LazyLock<PathBuf> = LazyLock::new(|| {
+/// Configuration file
+pub static CONFIG_FILE: LazyLock<PathBuf> = LazyLock::new(|| {
     dirs::config_dir()
         .unwrap()
         .join(env!("CARGO_PKG_NAME"))
@@ -69,10 +82,26 @@ pub struct Crates {
 }
 
 impl Crates {
-    /// Get the current state of installed crates
-    pub fn new(include: &[&str], kinds: &IndexSet<Kind>) -> Result<Crates> {
+    /**
+    Get the current state of installed crates
+
+    - `include`: Slice of regex patterns to filter crates by name;
+      empty slice `&[]` means "all crates"
+    - `kinds`: Filter crates by kind; empty kinds is an error
+    - `protocol`: Method used to fetch versions from Crates.io;
+      if `None` it uses the protocol set in the config file, or the default if not set
+    */
+    pub fn new(
+        include: &[&str],
+        kinds: &IndexSet<Kind>,
+        protocol: Option<Protocol>,
+    ) -> Result<Crates> {
+        if kinds.is_empty() {
+            return Err(anyhow!("No kinds"));
+        }
+
         let crates = CratesJson::new()?;
-        let config = Config::new(&crates)?;
+        let config = Config::new(&crates, protocol)?;
         let protocol = config.protocol;
         let rust = get_rust_version()?;
         let installed = crates.to_map(include, kinds, &rust, &config)?;
@@ -143,6 +172,12 @@ impl Crates {
                 .filter_map(|(name, c)| c.outdated.then_some((name, c)))
                 .collect()
         }
+    }
+
+    /// Protocol
+    #[must_use]
+    pub fn protocol(&self) -> &Protocol {
+        &self.protocol
     }
 }
 
@@ -264,6 +299,10 @@ impl CratesJson {
         rust_version: &semver::Version,
         config: &Config,
     ) -> Result<BTreeMap<String, Crate>> {
+        if kinds.is_empty() {
+            return Err(anyhow!("No kinds"));
+        }
+
         let include_re = (!include.is_empty())
             .then(|| RegexSet::new(include))
             .transpose()?;
@@ -288,7 +327,6 @@ impl CratesJson {
 
         let mut crates = BTreeMap::new();
         let mut errors = Vec::new();
-
         for result in results {
             match result {
                 Ok(Some((name, krate))) => {
@@ -302,17 +340,20 @@ impl CratesJson {
         if errors.is_empty() {
             Ok(crates)
         } else {
-            Err(anyhow::anyhow!(
-                "Failed to process {} installs keys:\n\n{}",
-                errors.len(),
-                errors
-                    .iter()
-                    .enumerate()
-                    .fold(String::new(), |mut s, (i, k)| {
-                        let _ = writeln!(s, "{}. `{k}`", i + 1);
-                        s
-                    }),
-            ))
+            Err(anyhow!(CargoListError::new(
+                3,
+                format!(
+                    "Failed to process {} installs keys:\n\n{}",
+                    errors.len(),
+                    errors
+                        .iter()
+                        .enumerate()
+                        .fold(String::new(), |mut s, (i, k)| {
+                            let _ = writeln!(s, "{}. `{k}`", i + 1);
+                            s
+                        }),
+                ),
+            )))
         }
     }
 }
@@ -426,7 +467,7 @@ pub struct Config {
 }
 
 impl Config {
-    fn new(crates_json: &CratesJson) -> Result<Config> {
+    fn new(crates_json: &CratesJson, protocol: Option<Protocol>) -> Result<Config> {
         if CONFIG_FILE.exists() {
             if CONFIG_FILE.is_file() {
                 // Deserialize the config file
@@ -438,12 +479,16 @@ impl Config {
                     )
                 })?;
 
-                let config: Config = toml::from_str(&config_str).map_err(|e| {
+                let mut config: Config = toml::from_str(&config_str).map_err(|e| {
                     anyhow!(
                         "Failed to deserialize config file `{}`: {e}",
                         CONFIG_FILE.display(),
                     )
                 })?;
+
+                if let Some(protocol) = protocol {
+                    config.protocol = protocol;
+                }
 
                 Ok(config)
             } else {
@@ -456,6 +501,10 @@ impl Config {
             // Create a default config file
 
             let mut config = Config::default();
+
+            if let Some(protocol) = protocol {
+                config.protocol = protocol;
+            }
 
             let results = crates_json
                 .installs
@@ -488,7 +537,7 @@ impl Config {
                 config.save()?;
                 Ok(config)
             } else {
-                Err(anyhow::anyhow!(
+                Err(anyhow!(
                     "Failed to process {} installs keys:\n\n{}",
                     errors.len(),
                     errors
@@ -648,6 +697,563 @@ impl veg::colored::Table for Row {
     }
 }
 
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+/// Custom error with an exit code and message
+#[derive(Debug, thiserror::Error)]
+#[error("{message}")]
+pub struct CargoListError {
+    /// Exit code
+    pub exit_code: i32,
+
+    /// Message
+    pub message: String,
+}
+
+impl CargoListError {
+    /// Create a [`CargoListError`]
+    #[must_use]
+    pub fn new(exit_code: i32, message: String) -> CargoListError {
+        CargoListError { exit_code, message }
+    }
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+/// List command/args
+#[derive(clap::Args, Clone)]
+#[allow(clippy::struct_excessive_bools)]
+#[command(about, version, max_term_width = 80)]
+pub struct List {
+    /// Include local crates
+    #[arg(short = 'l', long)]
+    local: bool,
+
+    /// Include git crates
+    #[arg(short = 'g', long)]
+    git: bool,
+
+    /// Include external crates (default)
+    #[arg(short = 'e', long)]
+    external: bool,
+
+    /// Include local, git, and external crates; same as `-lge`
+    #[arg(
+        short = 'a',
+        long,
+        conflicts_with_all = &["local", "git", "external"],
+    )]
+    all: bool,
+
+    /// Only show *outdated* crates / hide up-to-date crates
+    #[arg(short = 'o', long)]
+    outdated: bool,
+
+    /// Protocol
+    #[arg(short = 'p', long, value_name = "P", default_value_t)]
+    protocol: Protocol,
+
+    /// Ignore pinned version requirements when deciding if a crate is *outdated* for the purpose of
+    /// listing or updating the crate
+    #[arg(short = 'I', long)]
+    ignore_req: bool,
+
+    /// Consider a crate to be outdated if compiled with a Rust version different than the active
+    /// toolchain
+    #[arg(short = 'R', long)]
+    outdated_rust: bool,
+
+    /// Update outdated crates
+    #[arg(short = 'u', long)]
+    update: bool,
+
+    /// Dry run (only relevant to `-u` / `--update`)
+    #[arg(short = 'n', long)]
+    dry_run: bool,
+
+    /// Output format
+    #[arg(
+        short = 'f',
+        long,
+        value_name = "F",
+        default_value_t,
+        conflicts_with_all = &["update", "install"],
+    )]
+    format: OutputFormat,
+
+    /// Install one or more crate(s)
+    ///
+    /// Same as `cargo install ...` except when combined with `--locked` which sets the locked
+    /// status in the configuration file
+    #[arg(long)]
+    install: bool,
+
+    /// Locked (only relevant to `--install`)
+    #[arg(long)]
+    locked: bool,
+
+    /// Print readme
+    #[arg(short = 'r', long)]
+    readme: bool,
+
+    /// Show running configuration and exit
+    #[arg(short = 'c', long)]
+    config: bool,
+
+    /// List/update installed crates matching given pattern(s);
+    /// if `--install` use the actual crate name
+    #[arg(value_name = "PATTERN")]
+    include: Vec<String>,
+}
+
+impl List {
+    /// Run the list command
+    pub fn run(&self) -> Result<()> {
+        if self.readme {
+            self.print_readme()
+        } else if self.config {
+            self.show_config()
+        } else if self.install {
+            self.install_crates()
+        } else if self.update {
+            self.update_crates()
+        } else {
+            self.list_crates()
+        }
+    }
+
+    #[allow(clippy::unused_self)]
+    #[allow(clippy::unnecessary_wraps)]
+    fn print_readme(&self) -> Result<()> {
+        page_output("md");
+        print!("{README}");
+        Ok(())
+    }
+
+    #[allow(clippy::unused_self)]
+    #[allow(clippy::unnecessary_wraps)]
+    fn show_config(&self) -> Result<()> {
+        page_output("md");
+        println!("# Configuration\n");
+        let (crates, kinds) = self.get_crates()?;
+        println!("- Configuration file: `{}`", CONFIG_FILE.display());
+        println!("- Protocol: `{:?}`", crates.protocol());
+        println!("- Kinds: `{kinds:?}`");
+        println!();
+        Ok(())
+    }
+
+    fn list_crates(&self) -> Result<()> {
+        let (crates, kinds) = self.get_crates()?;
+
+        match self.format {
+            Markdown => {
+                if crates.is_empty() {
+                    if self.include.is_empty() {
+                        Err(anyhow!(CargoListError::new(
+                            1,
+                            "*No crates are installed.*".into(),
+                        )))
+                    } else {
+                        Err(anyhow!(CargoListError::new(
+                            2,
+                            format!("*No crates matching `{:?}` are installed.*", self.include),
+                        )))
+                    }
+                } else {
+                    for kind in &kinds {
+                        println!("{}\n", format!("# {kind:?}").magenta().bold());
+
+                        let mut t = if self.outdated_rust {
+                            Veg::table(&TABLE_HEAD.replace("\n\n", "|-").replace("\n-", "|Rust\n-"))
+                        } else {
+                            Veg::table(TABLE_HEAD.trim())
+                        };
+
+                        let mut outdated = 0;
+                        let mut outdated_pinned = 0;
+                        for (i, c) in crates.kind(*kind).into_iter().enumerate() {
+                            self.row(i, c, &mut t, &mut outdated, &mut outdated_pinned);
+                        }
+
+                        // Print the table
+                        if !t.is_empty() {
+                            println!("{}", t.markdown()?);
+                        }
+
+                        // Print a summary
+                        if *kind == External {
+                            if outdated == 0 {
+                                println!(
+                                    "{}\n",
+                                    format!(
+                                        "**All {}external crates are up-to-date!**",
+                                        if outdated_pinned > 0 { "unpinned " } else { "" },
+                                    )
+                                    .green()
+                                    .bold(),
+                                );
+                            } else {
+                                println!(
+                                    "{}\n",
+                                    format!(
+                                        "**Need to update {} external crate{}!**",
+                                        outdated,
+                                        s(outdated),
+                                    )
+                                    .red()
+                                    .bold(),
+                                );
+                            }
+
+                            if outdated_pinned > 0 {
+                                println!(
+                                    "{}\n",
+                                    format!(
+                                        "*Consider updating {} pinned external crate{}{}.*",
+                                        outdated_pinned,
+                                        s(outdated_pinned),
+                                        if self.ignore_req {
+                                            ""
+                                        } else {
+                                            "... add `-I` to view"
+                                        },
+                                    )
+                                    .yellow()
+                                    .italic(),
+                                );
+                            }
+                        }
+                    }
+
+                    Ok(())
+                }
+            }
+            Json => {
+                page_output("json");
+                println!("{}", serde_json::to_string(&crates)?);
+                Ok(())
+            }
+            JsonPretty => {
+                page_output("json");
+                println!("{}", serde_json::to_string_pretty(&crates)?);
+                Ok(())
+            }
+            Rust => {
+                page_output("rust");
+                println!("{crates:?}");
+                Ok(())
+            }
+            RustPretty => {
+                page_output("rust");
+                println!("{crates:#?}");
+                Ok(())
+            }
+        }
+    }
+
+    fn update_crates(&self) -> Result<()> {
+        let (crates, kinds) = self.get_crates()?;
+
+        if crates.outdated(self.ignore_req).is_empty() {
+            self.list_crates()
+        } else {
+            self.list_crates()?;
+
+            for kind in &kinds {
+                if *kind != External {
+                    continue;
+                }
+
+                let mut updates = vec![];
+
+                for c in crates.kind(*kind) {
+                    if self.outdated_rust && c.outdated_rust {
+                        // Update crate installed/compiled with outdated Rust
+                        updates.push(c);
+                    } else if c.outdated {
+                        // Update outdated crate
+                        updates.push(c);
+                    } else if self.ignore_req && !c.newer.is_empty() {
+                        // Update outdated pinned crate
+                        updates.push(c);
+                    }
+                }
+
+                if !updates.is_empty() {
+                    println!("{}\n", format!("# {kind:?}").magenta().bold());
+
+                    let mut shell = Shell {
+                        dry_run: self.dry_run,
+                        ..Default::default()
+                    };
+
+                    if self.dry_run {
+                        shell.info = "bash".into();
+                    }
+
+                    for c in &updates {
+                        println!("{}\n", format!("## {}", c.name).yellow().bold());
+
+                        let _ = shell.run(&[sprint::Command::new(
+                            &c.update_command(self.ignore_req).join(" "),
+                        )]);
+                        // TODO: Handle failed update
+                    }
+                }
+            }
+
+            self.list_crates()
+        }
+    }
+
+    fn install_crates(&self) -> Result<()> {
+        println!("{}\n", "# Install".magenta().bold());
+
+        let mut shell = Shell {
+            dry_run: self.dry_run,
+            ..Default::default()
+        };
+
+        if self.dry_run {
+            shell.info = String::from("bash");
+        }
+
+        let mut crate_names = BTreeSet::new();
+
+        for i in &self.include {
+            println!("{}\n", format!("## {i:?}").yellow().bold());
+
+            let _ = shell.run(&[sprint::Command {
+                command: if self.locked {
+                    crate_names.insert({
+                        let mut name = i.as_str();
+
+                        if name.contains('@') {
+                            (name, _) = name.split_once('@').expect("split @");
+                        }
+
+                        if name.contains(' ') {
+                            (name, _) = name.split_once(' ').expect("split space");
+                        }
+
+                        name.to_string()
+                    });
+
+                    format!("cargo install --locked {i}")
+                } else {
+                    format!("cargo install {i}")
+                },
+                ..Default::default()
+            }]);
+        }
+        // TODO: Handle failed install
+
+        if self.locked {
+            self.get_crates()?.0.lock(&crate_names)
+        } else {
+            Ok(())
+        }
+    }
+
+    fn get_crates(&self) -> Result<(Crates, IndexSet<Kind>)> {
+        spinner("", || {
+            let kinds = self.kinds();
+
+            match Crates::new(&to_strs(&self.include), &kinds, Some(self.protocol)) {
+                Ok(crates) => Ok((crates, kinds)),
+                Err(e) => Err(e),
+            }
+        })
+    }
+
+    fn kinds(&self) -> IndexSet<Kind> {
+        if self.all {
+            Kind::all()
+        } else {
+            let mut kinds = [
+                (self.local, Local),
+                (self.git, Git),
+                (self.external, External),
+            ]
+            .into_iter()
+            .filter_map(|(cond, kind)| cond.then_some(kind))
+            .collect::<IndexSet<_>>();
+
+            if kinds.is_empty() {
+                kinds.insert(External);
+            }
+
+            kinds
+        }
+    }
+
+    #[allow(clippy::too_many_lines)]
+    fn row(
+        &self,
+        i: usize,
+        c: &Crate,
+        t: &mut Veg,
+        outdated: &mut usize,
+        outdated_pinned: &mut usize,
+    ) {
+        if c.kind == External {
+            let available = if c.pinned.is_some() && !c.newer.is_empty() {
+                // Pinned AND outdated
+
+                *outdated_pinned += 1;
+
+                c.newer
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            } else {
+                // Not pinned OR pinned and up-to-date
+
+                c.available
+                    .as_ref()
+                    .map_or_else(String::new, ToString::to_string)
+            };
+
+            if self.outdated_rust {
+                // -R
+
+                if c.outdated_rust {
+                    // Crate is installed/compiled with outdated Rust
+
+                    *outdated += 1;
+
+                    t.push(Row::new(
+                        number(i),
+                        c.name.normal(),
+                        opt_normal(c.pinned.as_ref()),
+                        c.installed.to_string().green(),
+                        opt_warn(c.pinned.as_ref(), &available),
+                        locked(c.locked),
+                        c.rust_version.to_string().red(),
+                        self.outdated_rust,
+                    ));
+                } else if !c.newer.is_empty() {
+                    // Crate is pinned but there are updates
+
+                    t.push(Row::new(
+                        number(i),
+                        c.name.normal(),
+                        opt_normal(c.pinned.as_ref()),
+                        c.installed.to_string().green(),
+                        opt_warn(c.pinned.as_ref(), &available),
+                        locked(c.locked),
+                        c.rust_version.to_string().green(),
+                        self.outdated_rust,
+                    ));
+                } else if !self.outdated {
+                    // Include up-to-date crates
+
+                    t.push(Row::new(
+                        number(i),
+                        c.name.normal(),
+                        opt_normal(c.pinned.as_ref()),
+                        c.installed.to_string().green(),
+                        empty(),
+                        locked(c.locked),
+                        c.rust_version.to_string().green(),
+                        self.outdated_rust,
+                    ));
+                }
+            } else {
+                // No -R...
+
+                if c.outdated {
+                    // Include outdated crate
+
+                    *outdated += 1;
+
+                    t.push(Row::new(
+                        number(i),
+                        c.name.normal(),
+                        opt_normal(c.pinned.as_ref()),
+                        c.installed.to_string().red(),
+                        available.bold(),
+                        locked(c.locked),
+                        red_or_green(c.outdated_rust, &c.rust_version),
+                        self.outdated_rust,
+                    ));
+                } else if !c.newer.is_empty() {
+                    // Include outdated pinned crate
+
+                    t.push(Row::new(
+                        number(i),
+                        c.name.normal(),
+                        opt_normal(c.pinned.as_ref()),
+                        c.installed.to_string().yellow(),
+                        c.newer[0].to_string().bold().green(),
+                        locked(c.locked),
+                        empty(),
+                        self.outdated_rust,
+                    ));
+                } else if !self.outdated {
+                    // Include every crate
+
+                    t.push(Row::new(
+                        number(i),
+                        c.name.normal(),
+                        opt_normal(c.pinned.as_ref()),
+                        c.installed.to_string().green(),
+                        empty(),
+                        locked(c.locked),
+                        empty(),
+                        self.outdated_rust,
+                    ));
+                }
+            }
+        } else if !self.outdated {
+            // Include git and local crates
+
+            if self.outdated_rust {
+                // -R
+
+                if c.outdated_rust {
+                    t.push(Row::new(
+                        number(i),
+                        c.name.normal(),
+                        empty(),
+                        c.installed.to_string().cyan(),
+                        empty(),
+                        locked(c.locked),
+                        c.rust_version.to_string().red(),
+                        self.outdated_rust,
+                    ));
+                } else {
+                    t.push(Row::new(
+                        number(i),
+                        c.name.normal(),
+                        empty(),
+                        c.installed.to_string().cyan(),
+                        empty(),
+                        locked(c.locked),
+                        c.rust_version.to_string().green(),
+                        self.outdated_rust,
+                    ));
+                }
+            } else {
+                // No -R...
+
+                t.push(Row::new(
+                    number(i),
+                    c.name.normal(),
+                    empty(),
+                    c.installed.to_string().cyan(),
+                    empty(),
+                    locked(c.locked),
+                    empty(),
+                    self.outdated_rust,
+                ));
+            }
+        }
+    }
+}
+
 //--------------------------------------------------------------------------------------------------
 // Enums
 
@@ -687,14 +1293,19 @@ impl Kind {
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize)]
+/// Protocol used to query the Crates.io index
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, ValueEnum)]
 #[serde(rename_all = "lowercase")]
-enum Protocol {
+pub enum Protocol {
+    /// <https://doc.rust-lang.org/cargo/reference/registry-index.html>
     #[default]
     Sparse,
-    Api,
-    // Git,
+
+    /// <https://doc.rust-lang.org/cargo/reference/registry-web-api.html>
+    RestApi,
 }
+
+pub use Protocol::*;
 
 impl Protocol {
     fn get_latest(
@@ -705,11 +1316,55 @@ impl Protocol {
     ) -> Result<(semver::Version, Vec<semver::Version>)> {
         match self {
             Protocol::Sparse => sparse_latest(name, version_req, prerelease),
-            Protocol::Api => api_latest(name, version_req, prerelease),
-            // Protocol::Git => {
-            //     unimplemented!()
-            // }
+            Protocol::RestApi => rest_api_latest(name, version_req, prerelease),
         }
+    }
+}
+
+impl std::fmt::Display for Protocol {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Sparse => "sparse",
+            RestApi => "rest-api",
+        }
+        .fmt(f)
+    }
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+/// List and update installed crates
+#[derive(Parser)]
+#[command(name = "cargo", bin_name = "cargo", styles = CLAP_STYLING)]
+pub enum Command {
+    /// List and update installed crates
+    List(List),
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+#[derive(Clone, Default, ValueEnum)]
+enum OutputFormat {
+    #[default]
+    Markdown,
+    Json,
+    JsonPretty,
+    Rust,
+    RustPretty,
+}
+
+use OutputFormat::{Json, JsonPretty, Markdown, Rust, RustPretty};
+
+impl std::fmt::Display for OutputFormat {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Markdown => "markdown",
+            Json => "json",
+            JsonPretty => "json-pretty",
+            Rust => "rust",
+            RustPretty => "rust-pretty",
+        }
+        .fmt(f)
     }
 }
 
@@ -720,7 +1375,7 @@ impl Protocol {
 Get the latest available (not prerelease or yanked) version(s) for a crate, optionally matching a
 required version, via the Crates.io REST API
 */
-pub fn api_latest(
+pub fn rest_api_latest(
     name: &str,
     version_req: Option<&semver::VersionReq>,
     prerelease: bool,
@@ -843,7 +1498,7 @@ pub fn get_active_toolchain() -> Result<String> {
         ..Default::default()
     };
 
-    let result = shell.run1(&Command {
+    let result = shell.run1(&sprint::Command {
         command: String::from("rustup show active-toolchain -v"),
         stdout: Pipe::string(),
         ..Default::default()
@@ -881,4 +1536,78 @@ pub fn parse_to_version(s: &str) -> Result<semver::Version> {
         Ok(v) => Ok(v),
         Err(e) => Err(anyhow!("Failed to parse version string `{s}`: {e}")),
     }
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+fn to_strs(v: &[String]) -> Vec<&str> {
+    v.iter().map(String::as_str).collect::<Vec<_>>()
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+fn spinner<F, T>(msg: &str, f: F) -> T
+where
+    F: FnOnce() -> T,
+{
+    let mut sp = Spinner::new(Spinners::Line, msg.into());
+    let r = f();
+    sp.stop();
+    eprint!("\x1b[2K\r");
+    r
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+fn page_output(lang: &str) {
+    #[cfg(unix)]
+    Pager::with_pager(&format!("bat -pl {lang}")).setup();
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+fn s(n: usize) -> &'static str {
+    if n == 1 { "" } else { "s" }
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+fn locked(cond: bool) -> ColoredString {
+    if cond { "✔".bold().green() } else { empty() }
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+fn number(i: usize) -> ColoredString {
+    (i + 1).to_string().normal()
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+fn opt_normal<T: std::fmt::Display>(v: Option<&T>) -> ColoredString {
+    v.map_or_else(empty, |x| x.to_string().normal())
+}
+
+fn opt_warn<T: std::fmt::Display>(o: Option<&T>, s: &str) -> ColoredString {
+    if o.is_some() {
+        s.yellow().bold()
+    } else {
+        empty()
+    }
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+fn red_or_green(cond: bool, v: &semver::Version) -> ColoredString {
+    if cond {
+        v.to_string().red()
+    } else {
+        v.to_string().green()
+    }
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+fn empty() -> ColoredString {
+    "".normal()
 }

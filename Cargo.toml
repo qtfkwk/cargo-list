@@ -1,6 +1,6 @@
 [package]
 name = "cargo-list"
-version = "0.37.0"
+version = "0.38.0"
 edition = "2024"
 description = "List and update installed crates"
 repository = "https://github.com/qtfkwk/cargo-list"
@@ -14,6 +14,7 @@ anyhow = "1"
 clap = { version = "4", features = ["derive", "wrap_help"] }
 clap-cargo = "0"
 dirs = "7"
+env_logger = "0.11.11"
 indexmap = { version = "2", features = ["rayon"] }
 rayon = "1"
 regex = "1"

@@ -1,7 +1,7 @@
 ```rust
 use cargo_list::Crates;
 
-match Crates::new(&[], &cargo_list::Kind::all()) {
+match Crates::new(&[], &cargo_list::Kind::all(), None) {
     Ok(crates) => {
         if crates.is_empty() {
             println!("No crates installed!");

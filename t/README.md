@@ -1,14 +1,55 @@
 # CLI
 
 ```text
+$ cargo list -V
+!run:../target/release/cargo-list list -V
+```
+
+```text
 $ cargo list -h
 !run:../target/release/cargo-list list -h
 ```
 
 ```text
-$ cargo list -V
-!run:../target/release/cargo-list list -V
+$ cargo list --help
+!run:../target/release/cargo-list list --help
 ```
+
+## Protocol
+
+The default protocol used to get the latest available upstream crate versions is the [sparse index].
+
+The previous default protocol was the [REST API], which is still available and `cargo-list` can use
+it temporarily via `-p rest-api` or by default by setting `protocol = "rest-api"` in the
+configuration file.
+Using the REST API for retrieving the latest available versions is quite excessive because it (a)
+demands server-side processing, (b) can be done perfectly well via the sparse index, and (c) is
+intended for other use cases (like `cargo search`, `cargo info`, etc).
+
+Note that `cargo-list` has never had nor any plans exist to support the legacy Git index.
+
+See also the [Data Access Policy] at Crates.io.
+
+> [!WARNING]
+> The REST API does have a limit, will respond with [HTTP 429 Too Many Requests] errors if you
+> exceed it, and `cargo list` prints them to stderr and exits with error code 3 when they occur.
+> The [published limit](https://crates.io/data-access#api) is "a maximum of 1 request per second,"
+> however `cargo-list` typically sends 1--2 requests per external crate every time it runs.
+> The 429 errors are not observed until running `cargo list` with enough installed crates and/or
+> times to produce several hundred requests inside a short window (1--5 minutes).
+> The throttle clears after a few minutes.
+
+[sparse index]:
+https://doc.rust-lang.org/cargo/reference/registry-index.html
+
+[REST API]:
+https://doc.rust-lang.org/cargo/reference/registry-web-api.html
+
+[Data Access Policy]:
+https://crates.io/data-access
+
+[HTTP 429 Too Many Requests]:
+https://datatracker.ietf.org/doc/html/rfc6585#section-4
 
 ## List installed external crates
 
@@ -84,6 +125,12 @@ cargo list -oeI
 
 ```bash
 cargo list -oeR
+```
+
+## List outdated external crates (ignore pinned version requirements and include crates compiled with old Rust)
+
+```bash
+cargo list -oeIR
 ```
 
 ## Update outdated external crates (ignore pinned version requirements and include crates compiled with old Rust)
@@ -186,6 +233,19 @@ cargo list -f rust -o
 
 ```bash
 cargo list -f rust-pretty -o
+```
+
+## Enable debug logging
+
+```bash
+RUST_LOG=reqwest=debug,hyper=debug cargo list
+```
+
+## Show running configuration
+
+```bash
+cargo list -c
+!run:../target/release/cargo-list list -c |sed 's/\/home\/[^\/]*/\/home\/user/'
 ```
 
 # Library
