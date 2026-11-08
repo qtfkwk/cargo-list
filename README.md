@@ -1,6 +1,4 @@
-# Usage
-
-## CLI
+# CLI
 
 ```text
 $ cargo list -h
@@ -12,114 +10,128 @@ Arguments:
   [PATTERN]...  List/update crates matching given pattern(s)
 
 Options:
-  -f <FORMAT>     Output format [default: md] [possible values: json,
-                  json-pretty, md, rust, rust-pretty]
-  -k <KIND>       Kind(s) [default: external] [possible values: local, git,
-                  external]
-  -a              All kinds
-  -o, --outdated  Hide up-to-date crates
-  -I              Ignore version requirements to update pinned crate(s)
-  -R              Consider a crate to be outdated if compiled with a Rust
-                  version different than the active toolchain
-  -u, --update    Update outdated crates
-  -n, --dry-run   Dry run
-  -c <PATH>       Cargo install metadata file (falls back to
-                  `~/.cargo/.crates2.json` if `$CARGO_HOME` is unset) [default:
-                  $CARGO_HOME/.crates2.json]
-      --install   Install crate(s)
-      --locked    Locked (only relevant to `--install`)
-  -r, --readme    Print readme
-  -h, --help      Print help (see more with '--help')
-  -V, --version   Print version
+  -f <FORMAT>          Output format [default: markdown] [possible values:
+                       markdown, json, json-pretty, rust, rust-pretty]
+  -l, --local          Local crates
+  -g, --git            Git crates
+  -e, --external       External crates (default)
+  -a, --all            Local, git, and external crates
+  -o, --outdated       Only show *outdated* crates
+  -I, --ignore-req     Ignore pinned version requirements
+  -R, --outdated-rust  Consider a crate to be outdated if compiled with a Rust
+                       version different than the active toolchain
+  -u, --update         Update outdated crates
+  -n, --dry-run        Dry run (only relevant to `-u`)
+      --install        Install crate(s)
+      --locked         Locked (only relevant to `--install`)
+  -r, --readme         Print readme
+  -h, --help           Print help
+  -V, --version        Print version
 ```
 
 ```text
 $ cargo list -V
-cargo-list 0.36.0
+cargo-list 0.37.0
 ```
 
-### List installed external crates
+## List installed external crates
 
 ```bash
-cargo list
+cargo list -e
 ```
 
-### List installed external crates containing `cargo`
+> [!NOTE]
+> The `-e`, `-g`, `-l`, and `-a` options provide a flexible and concise way to specify the desired
+> crate kinds.
+> The order they are used makes no difference; crates are always listed by kind (if included) in
+> local, git, external order.
+>
+> | Options                                                | Description              |
+> |--------------------------------------------------------|--------------------------|
+> | `-e` or *None*                                         | External only            |
+> | `-l`                                                   | Local only               |
+> | `-g`                                                   | Git only                 |
+> | `-le` or `-el`                                         | Local and external only  |
+> | `-ge` or `-eg`                                         | Git and external only    |
+> | `-lg` or `-gl`                                         | Local and git only       |
+> | `-lge`, `-leg`, `-gle`, `-gel`, `-elg`, `-egl` or `-a` | Local, git, and external |
+
+## List installed external crates containing `cargo`
 
 ```bash
-cargo list cargo
+cargo list -e cargo
 ```
 
-### List installed external crates beginning with `cargo`
+## List installed external crates beginning with `cargo`
 
 ```bash
-cargo list ^cargo
+cargo list -e ^cargo
 ```
 
-### List installed external crates ending with `list`
+## List installed external crates ending with `list`
 
 ```bash
-cargo list 'list$'
+cargo list -e 'list$'
 ```
 
-### List installed external crates matching `cargo-list`
+## List installed external crates matching `cargo-list`
 
 ```bash
-cargo list '^cargo-list$'
+cargo list -e '^cargo-list$'
 ```
 
-### List outdated external crates
+## List outdated external crates
 
 ```bash
-cargo list -o
+cargo list -oe
 ```
 
-### Update outdated external crates
+## Update outdated external crates
 
 ```bash
-cargo list -ou
+cargo list -uoe
 ```
 
-### List the `cargo install` commands to update outdated external crates
+## List the `cargo install` commands to update outdated external crates
 
 ```bash
-cargo list -oun
+cargo list -nuoe
 ```
 
-### List outdated external crates (ignore version requirements)
+## List outdated external crates (ignore pinned version requirements)
 
 ```bash
-cargo list -oI
+cargo list -oeI
 ```
 
-### List outdated external crates (include crates compiled with old Rust)
+## List outdated external crates (include crates compiled with old Rust)
 
 ```bash
-cargo list -oR
+cargo list -oeR
 ```
 
-### Update outdated external crates (ignore version requirements and include crate compiled with old Rust)
+## Update outdated external crates (ignore pinned version requirements and include crates compiled with old Rust)
 
 ```bash
-cargo list -oIRu
+cargo list -uoeIR
 ```
 
-### List crates installed via git
+## List crates installed via git
 
 ```bash
-cargo list -k git
+cargo list -g
 ```
 
-### List installed local crates
+## List installed local crates
 
 ```bash
-cargo list -k local
+cargo list -l
 ```
 
-### List installed local, git, and external crates
+## List installed local, git, and external crates
 
 ```bash
-cargo list -k local -k git -k external
+cargo list -lge
 ```
 
 or shorter:
@@ -128,121 +140,110 @@ or shorter:
 cargo list -a
 ```
 
-### List outdated crates installed via git
+## List outdated crates installed via git
 
 ```bash
-cargo list -k git -o
+cargo list -og
 ```
 
-### List outdated installed local crates
+## List outdated installed local crates
 
 ```bash
-cargo list -k local -o
+cargo list -ol
 ```
 
-### List outdated installed local, git, and external crates
+## List outdated installed local, git, and external crates
 
 ```bash
-cargo list -k local -k git -k external -o
+cargo list -olge
 ```
 
 or shorter:
 
 ```bash
-cargo list -ao
+cargo list -oa
 ```
 
-### Dump installed external crates to JSON
+## Dump installed external crates to JSON
 
 ```bash
 cargo list -f json
 ```
 
-### Dump installed external crates to pretty JSON
+## Dump installed external crates to pretty JSON
 
 ```bash
 cargo list -f json-pretty
 ```
 
-### Dump installed external crates to Rust
+## Dump installed external crates to Rust
 
 ```bash
 cargo list -f rust
 ```
 
-### Dump installed external crates to pretty Rust
+## Dump installed external crates to pretty Rust
 
 ```bash
 cargo list -f rust-pretty
 ```
 
-### Dump outdated installed external crates to JSON
+## Dump outdated installed external crates to JSON
 
 ```bash
 cargo list -f json -o
 ```
 
-### Dump outdated installed external crates to pretty JSON
+## Dump outdated installed external crates to pretty JSON
 
 ```bash
 cargo list -f json-pretty -o
 ```
 
-### Dump outdated installed external crates to Rust
+## Dump outdated installed external crates to Rust
 
 ```bash
 cargo list -f rust -o
 ```
 
-### Dump outdated installed external crates to pretty Rust
+## Dump outdated installed external crates to pretty Rust
 
 ```bash
 cargo list -f rust-pretty -o
 ```
 
-## Library
+# Library
 
 ```rust
-use cargo_list::{expanduser, Crates};
-use rayon::prelude::*;
-use std::collections::BTreeMap;
+use cargo_list::Crates;
 
-let path = expanduser("~/.cargo/.crates2.json");
-
-match Crates::from(&path) {
-    Ok(installed) => {
-        if installed.is_empty() {
+match Crates::new(&[], &cargo_list::Kind::all()) {
+    Ok(crates) => {
+        if crates.is_empty() {
             println!("No crates installed!");
         } else {
-            let all = installed.crates();
-            let outdated = all
-                .par_iter()
-                .filter_map(|(&name, &c)| c.outdated.then_some((name, c)))
-                .collect::<BTreeMap<_, _>>();
+            let installed = crates.installed();
+            let outdated = crates.outdated(false);
 
             if outdated.is_empty() {
-                // List all crates in CSV
+                // List installed crates in CSV
                 println!("Name,Installed");
-                for (name, c) in &all {
+                for (name, c) in installed {
                     println!("{name},{}", c.installed);
                 }
             } else {
                 // List outdated crates in CSV
                 println!("Name,Installed,Available");
-                for (name, c) in &outdated {
-                    println!("{name},{},{}", c.installed, c.available);
+                for (name, c) in outdated {
+                    println!("{name},{},{}", c.installed, c.available.as_ref().unwrap());
                 }
 
                 // Print the `cargo install` commands for outdated crates
-                // for command in outdated
-                //     .iter()
-                //     .map(|(_name, c)| c.update_command().join(" "))
-                // {
-                //     println!("{command}");
+                // for (_name, c) in outdated {
+                //     println!("{}", c.update_command());
+                //     // Update:
+                //     // c.update()?;
                 // }
-
-                // Update outdated crates
-                // outdated.iter().for_each(|(_name, c)| c.update());
             }
         }
     }
@@ -251,12 +252,6 @@ match Crates::from(&path) {
     }
 }
 ```
-
-If you want to include just a subset of the crates, instead of `Crates::from(&path)`, use
-`Crates::from_include(&path, &patterns)` where `patterns` is a slice of `&str` [`regex`] patterns.
-
-[`regex`]: https://crates.io/crates/regex
-
 
 # Changelog
 

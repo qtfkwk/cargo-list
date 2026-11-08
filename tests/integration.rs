@@ -1,99 +1,37 @@
-use {
-    cargo_list::{Crates, expanduser},
-    rayon::prelude::*,
-    std::collections::BTreeMap,
-};
+//! Integration tests
+
+use {anyhow::Result, cargo_list, std::collections::BTreeMap};
 
 #[test]
-fn crates_from() {
-    let path = expanduser("~/.cargo/.crates2.json");
+fn get_active_toolchain() -> Result<()> {
+    let active_toolchain = cargo_list::get_active_toolchain()?;
 
-    match Crates::from(&path) {
-        Ok(installed) => {
-            if installed.is_empty() {
-                println!("No crates installed!");
-            } else {
-                let all = installed.crates();
-                let outdated = all
-                    .par_iter()
-                    .filter_map(|(&name, &c)| c.outdated.then_some((name, c)))
-                    .collect::<BTreeMap<_, _>>();
+    assert!(!active_toolchain.is_empty());
 
-                if outdated.is_empty() {
-                    // List all crates in CSV
-                    println!("Name,Installed");
-                    for (name, c) in &all {
-                        println!("{name},{}", c.installed);
-                    }
-                } else {
-                    // List outdated crates in CSV
-                    println!("Name,Installed,Available");
-                    for (name, c) in &outdated {
-                        println!("{name},{},{}", c.installed, c.available);
-                    }
+    println!("active_toolchain = {active_toolchain:?}");
 
-                    // Print the `cargo install` commands for outdated crates
-                    // for command in outdated
-                    //     .iter()
-                    //     .map(|(_name, c)| c.update_command().join(" "))
-                    // {
-                    //     println!("{command}");
-                    // }
-
-                    // Update outdated crates
-                    // outdated.iter().for_each(|(_name, c)| c.update());
-                }
-            }
-        }
-        Err(e) => {
-            eprintln!("Error: {e}");
-        }
-    }
+    Ok(())
 }
 
 #[test]
-fn crates_from_include() {
-    let path = expanduser("~/.cargo/.crates2.json");
+fn get_rust_version() -> Result<()> {
+    let rust_version = cargo_list::get_rust_version()?;
 
-    match Crates::from_include(&path, &["^t"]) {
-        Ok(installed) => {
-            if installed.is_empty() {
-                println!("No crates installed!");
-            } else {
-                let all = installed.crates();
-                let outdated = all
-                    .par_iter()
-                    .filter_map(|(&name, &c)| c.outdated.then_some((name, c)))
-                    .collect::<BTreeMap<_, _>>();
+    println!("rust_version = {rust_version:?}");
 
-                if outdated.is_empty() {
-                    // List all crates in CSV
-                    println!("Name,Installed");
-                    for (name, c) in &all {
-                        println!("{name},{}", c.installed);
-                    }
-                } else {
-                    // List outdated crates in CSV
-                    println!("Name,Installed,Available");
-                    for (name, c) in &outdated {
-                        println!("{name},{},{}", c.installed, c.available);
-                    }
+    Ok(())
+}
 
-                    // Print the `cargo install` commands for outdated crates
-                    // for command in outdated
-                    //     .iter()
-                    //     .map(|(_name, c)| c.update_command().join(" "))
-                    // {
-                    //     println!("{command}");
-                    // }
+#[test]
+fn crates_new() -> Result<()> {
+    let crates = cargo_list::Crates::new(&[], &cargo_list::Kind::all())?;
 
-                    // Update outdated crates
-                    // outdated.iter().for_each(|(_name, c)| c.update());
-                }
-            }
-        }
-        Err(e) => {
-            eprintln!("Error: {e}");
-        }
-    }
+    assert!(!crates.is_empty());
+
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&BTreeMap::from([("crates", crates)]))?,
+    );
+
+    Ok(())
 }

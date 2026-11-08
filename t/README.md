@@ -1,6 +1,4 @@
-# Usage
-
-## CLI
+# CLI
 
 ```text
 $ cargo list -h
@@ -12,88 +10,104 @@ $ cargo list -V
 !run:../target/release/cargo-list list -V
 ```
 
-### List installed external crates
+## List installed external crates
 
 ```bash
-cargo list
+cargo list -e
 ```
 
-### List installed external crates containing `cargo`
+> [!NOTE]
+> The `-e`, `-g`, `-l`, and `-a` options provide a flexible and concise way to specify the desired
+> crate kinds.
+> The order they are used makes no difference; crates are always listed by kind (if included) in
+> local, git, external order.
+>
+> | Options                                                | Description              |
+> |--------------------------------------------------------|--------------------------|
+> | `-e` or *None*                                         | External only            |
+> | `-l`                                                   | Local only               |
+> | `-g`                                                   | Git only                 |
+> | `-le` or `-el`                                         | Local and external only  |
+> | `-ge` or `-eg`                                         | Git and external only    |
+> | `-lg` or `-gl`                                         | Local and git only       |
+> | `-lge`, `-leg`, `-gle`, `-gel`, `-elg`, `-egl` or `-a` | Local, git, and external |
+
+## List installed external crates containing `cargo`
 
 ```bash
-cargo list cargo
+cargo list -e cargo
 ```
 
-### List installed external crates beginning with `cargo`
+## List installed external crates beginning with `cargo`
 
 ```bash
-cargo list ^cargo
+cargo list -e ^cargo
 ```
 
-### List installed external crates ending with `list`
+## List installed external crates ending with `list`
 
 ```bash
-cargo list 'list$'
+cargo list -e 'list$'
 ```
 
-### List installed external crates matching `cargo-list`
+## List installed external crates matching `cargo-list`
 
 ```bash
-cargo list '^cargo-list$'
+cargo list -e '^cargo-list$'
 ```
 
-### List outdated external crates
+## List outdated external crates
 
 ```bash
-cargo list -o
+cargo list -oe
 ```
 
-### Update outdated external crates
+## Update outdated external crates
 
 ```bash
-cargo list -ou
+cargo list -uoe
 ```
 
-### List the `cargo install` commands to update outdated external crates
+## List the `cargo install` commands to update outdated external crates
 
 ```bash
-cargo list -oun
+cargo list -nuoe
 ```
 
-### List outdated external crates (ignore version requirements)
+## List outdated external crates (ignore pinned version requirements)
 
 ```bash
-cargo list -oI
+cargo list -oeI
 ```
 
-### List outdated external crates (include crates compiled with old Rust)
+## List outdated external crates (include crates compiled with old Rust)
 
 ```bash
-cargo list -oR
+cargo list -oeR
 ```
 
-### Update outdated external crates (ignore version requirements and include crate compiled with old Rust)
+## Update outdated external crates (ignore pinned version requirements and include crates compiled with old Rust)
 
 ```bash
-cargo list -oIRu
+cargo list -uoeIR
 ```
 
-### List crates installed via git
+## List crates installed via git
 
 ```bash
-cargo list -k git
+cargo list -g
 ```
 
-### List installed local crates
+## List installed local crates
 
 ```bash
-cargo list -k local
+cargo list -l
 ```
 
-### List installed local, git, and external crates
+## List installed local, git, and external crates
 
 ```bash
-cargo list -k local -k git -k external
+cargo list -lge
 ```
 
 or shorter:
@@ -102,81 +116,81 @@ or shorter:
 cargo list -a
 ```
 
-### List outdated crates installed via git
+## List outdated crates installed via git
 
 ```bash
-cargo list -k git -o
+cargo list -og
 ```
 
-### List outdated installed local crates
+## List outdated installed local crates
 
 ```bash
-cargo list -k local -o
+cargo list -ol
 ```
 
-### List outdated installed local, git, and external crates
+## List outdated installed local, git, and external crates
 
 ```bash
-cargo list -k local -k git -k external -o
+cargo list -olge
 ```
 
 or shorter:
 
 ```bash
-cargo list -ao
+cargo list -oa
 ```
 
-### Dump installed external crates to JSON
+## Dump installed external crates to JSON
 
 ```bash
 cargo list -f json
 ```
 
-### Dump installed external crates to pretty JSON
+## Dump installed external crates to pretty JSON
 
 ```bash
 cargo list -f json-pretty
 ```
 
-### Dump installed external crates to Rust
+## Dump installed external crates to Rust
 
 ```bash
 cargo list -f rust
 ```
 
-### Dump installed external crates to pretty Rust
+## Dump installed external crates to pretty Rust
 
 ```bash
 cargo list -f rust-pretty
 ```
 
-### Dump outdated installed external crates to JSON
+## Dump outdated installed external crates to JSON
 
 ```bash
 cargo list -f json -o
 ```
 
-### Dump outdated installed external crates to pretty JSON
+## Dump outdated installed external crates to pretty JSON
 
 ```bash
 cargo list -f json-pretty -o
 ```
 
-### Dump outdated installed external crates to Rust
+## Dump outdated installed external crates to Rust
 
 ```bash
 cargo list -f rust -o
 ```
 
-### Dump outdated installed external crates to pretty Rust
+## Dump outdated installed external crates to pretty Rust
 
 ```bash
 cargo list -f rust-pretty -o
 ```
 
-## Library
+# Library
 
-!run:sed 's/^# //' LIBRARY.md
+!inc:LIBRARY.md
 
 # Changelog
 

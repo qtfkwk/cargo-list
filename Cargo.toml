@@ -1,6 +1,6 @@
 [package]
 name = "cargo-list"
-version = "0.36.0"
+version = "0.37.0"
 edition = "2024"
 description = "List and update installed crates"
 repository = "https://github.com/qtfkwk/cargo-list"
@@ -23,8 +23,23 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 spinners = "4"
 sprint = "0"
+thiserror = "2.0.21"
 toml = "1"
 veg = { version = "0", features = ["colored"] }
 
 [target.'cfg(unix)'.dependencies]
 pager2 = "0"
+
+[lints.rust]
+missing_docs = "deny"
+unsafe_code = "deny"
+unused_must_use = "deny"
+warnings = "deny"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
+doc_markdown = "allow"
+wildcard_imports = "allow"
+missing_errors_doc = "allow"
+
