@@ -76,6 +76,7 @@
 * 0.36.0 (2026-11-03): Add locked column; show pinned even if there is no update available; fix issue in 0.35.0 where `cargo list --install --locked` clobbers the existing `config.toml`; update dependencies
 * 0.37.0 (2026-11-08): Much-needed BREAKING overhaul/refactor; add sparse index support and use it by default due to 429 too many request errors observed using the REST API; add serve-doc target to makefile; replaced `-k` option with the `-e`, `-g`, and `-l` options; report rust version for git/local crates; add clippy configuration to `Cargo.toml`; update dependencies
 * 0.38.0 (2026-11-08): Add `-p` option to temporarily or explicitly use a particular protocol; enable logging; move constants, structs, enums, functions from `main.rs` to `lib.rs`; improve doc; update dependencies
+    * 0.38.1 (2026-11-08): Fix an issue where `cargo list` exits with an error when it fails to get the `locked` setting of a crate missing from the config file, for example due to installing via `cargo install` as opposed to `cargo list --install`, and simply consider such crates as having `locked = false`
 
 [`atty`]: https://crates.io/crates/atty
 [`bunt`]: https://crates.io/crates/bunt

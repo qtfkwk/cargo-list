@@ -437,7 +437,7 @@ impl CrateJson {
         let outdated_rust = rust_version < *available_rust_version;
 
         // Get the crate's locked preference from the config
-        let locked = config.is_locked(&name)?;
+        let locked = config.is_locked(&name);
 
         Ok(Crate {
             name,
@@ -552,11 +552,8 @@ impl Config {
         }
     }
 
-    fn is_locked(&self, name: &str) -> Result<bool> {
-        self.crates
-            .get(name)
-            .ok_or_else(|| anyhow!("Invalid crate name `{name}`"))
-            .map(|x| x.locked)
+    fn is_locked(&self, name: &str) -> bool {
+        self.crates.get(name).is_some_and(|x| x.locked)
     }
 
     fn save(&self) -> Result<()> {
@@ -805,6 +802,7 @@ pub struct List {
     #[arg(value_name = "PATTERN")]
     include: Vec<String>,
 }
+// TODO: Add an option to force update the configuration file... or perhaps just do it on each run?
 
 impl List {
     /// Run the list command
