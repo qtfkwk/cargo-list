@@ -12,7 +12,7 @@ fn main() {
     env_logger::init();
 
     match Command::parse() {
-        Command::List(list) => {
+        Command::List(mut list) => {
             if let Err(e) = list.run() {
                 eprintln!("{}", format!("Error: {e}").red().bold());
                 std::process::exit(

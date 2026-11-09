@@ -106,11 +106,15 @@ impl Crates {
         let rust = get_rust_version()?;
         let installed = crates.to_map(include, kinds, &rust, &config)?;
 
-        Ok(Crates {
+        let crates = Crates {
             protocol,
             installed,
             rust,
-        })
+        };
+
+        crates.save_config()?;
+
+        Ok(crates)
     }
 
     /// Are any crates installed?
@@ -564,8 +568,34 @@ impl Config {
         std::fs::create_dir_all(config_dir)
             .map_err(|e| anyhow!("Failed to create directory `{}`: {e}", config_dir.display()))?;
 
-        let config_toml =
-            toml::to_string_pretty(self).map_err(|e| anyhow!("Failed to serialize config: {e}"))?;
+        let config_toml = format!(
+            "\
+# Configuration file for `cargo-list`\n\
+#\n\
+# This file is automatically updated by `cargo list`.\n\
+#\n\
+# It may also be edited to the user's desired configuration.\n\
+#\n\
+# Reasons to edit:\n\
+#\n\
+# 1. Change the protocol:\n\
+#\n\
+# protocol = \"sparse\" # default\n\
+# protocol = \"rest-api\" # legacy\n\
+#\n\
+# 2. Toggle `locked` for one or more crates:\n\
+#\n\
+# [crates.crate-name]\n\
+# locked = false # default\n\
+# locked = true # add `--locked` to `cargo install` command\n\
+#\n\
+# Alternatively, use `cargo list --install --locked ...` to install crates and
+# `locked` will be set to `true`.\n\
+\n\
+{}\n\
+            ",
+            toml::to_string_pretty(self).map_err(|e| anyhow!("Failed to serialize config: {e}"))?,
+        );
 
         std::fs::write(&*CONFIG_FILE, &config_toml)
             .map_err(|e| anyhow!("Failed to write to `{}`: {e}", CONFIG_FILE.display()))?;
@@ -802,11 +832,10 @@ pub struct List {
     #[arg(value_name = "PATTERN")]
     include: Vec<String>,
 }
-// TODO: Add an option to force update the configuration file... or perhaps just do it on each run?
 
 impl List {
     /// Run the list command
-    pub fn run(&self) -> Result<()> {
+    pub fn run(&mut self) -> Result<()> {
         if self.readme {
             self.print_readme()
         } else if self.config {
@@ -1005,7 +1034,7 @@ impl List {
         }
     }
 
-    fn install_crates(&self) -> Result<()> {
+    fn install_crates(&mut self) -> Result<()> {
         println!("{}\n", "# Install".magenta().bold());
 
         let mut shell = Shell {
@@ -1047,8 +1076,11 @@ impl List {
         }
         // TODO: Handle failed install
 
+        self.include.clear();
+        let (mut crates, _kinds) = self.get_crates()?;
+
         if self.locked {
-            self.get_crates()?.0.lock(&crate_names)
+            crates.lock(&crate_names)
         } else {
             Ok(())
         }
