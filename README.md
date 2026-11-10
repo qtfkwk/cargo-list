@@ -2,7 +2,7 @@
 
 ```text
 $ cargo list -V
-cargo-list 0.38.2
+cargo-list 0.38.3
 ```
 
 ```text
@@ -101,8 +101,8 @@ Options:
       --install
           Install one or more crate(s)
           
-          Same as `cargo install ...` except when combined with `--locked` which
-          sets the locked status in the configuration file
+          Same as `cargo install ...` except sets the locked status in the
+          configuration file
 
       --locked
           Locked (only relevant to `--install`)

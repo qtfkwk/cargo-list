@@ -78,6 +78,7 @@
 * 0.38.0 (2026-11-08): Add `-p` option to temporarily or explicitly use a particular protocol; enable logging; move constants, structs, enums, functions from `main.rs` to `lib.rs`; improve doc; update dependencies
     * 0.38.1 (2026-11-08): Fix an issue where `cargo list` exits with an error when it fails to get the `locked` setting of a crate missing from the config file, for example due to installing via `cargo install` as opposed to `cargo list --install`, and simply consider such crates as having `locked = false`
     * 0.38.2 (2026-11-09): Save the configuration file in `Crates::new()` so that any crates installed via `cargo install` are automatically added to the config file; also ensure `Crates::save_config()`runs after `List::install_crates()`; add instructions to config file; update dependencies
+    * 0.38.3 (2026-11-10): fix `--install` description; fix `Crates` fields; restore full versions in `Cargo.toml`; add kinds to the "no crates installed" error for clarification; update dependencies
 
 [`atty`]: https://crates.io/crates/atty
 [`bunt`]: https://crates.io/crates/bunt

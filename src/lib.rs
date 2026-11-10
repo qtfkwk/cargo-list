@@ -77,8 +77,8 @@ pub static CONFIG_FILE: LazyLock<PathBuf> = LazyLock::new(|| {
 #[derive(Debug, Serialize)]
 pub struct Crates {
     protocol: Protocol,
+    rust_version: semver::Version,
     installed: BTreeMap<String, Crate>,
-    rust: semver::Version,
 }
 
 impl Crates {
@@ -103,13 +103,13 @@ impl Crates {
         let crates = CratesJson::new()?;
         let config = Config::new(&crates, protocol)?;
         let protocol = config.protocol;
-        let rust = get_rust_version()?;
-        let installed = crates.to_map(include, kinds, &rust, &config)?;
+        let rust_version = get_rust_version()?;
+        let installed = crates.to_map(include, kinds, &rust_version, &config)?;
 
         let crates = Crates {
             protocol,
+            rust_version,
             installed,
-            rust,
         };
 
         crates.save_config()?;
@@ -810,8 +810,7 @@ pub struct List {
 
     /// Install one or more crate(s)
     ///
-    /// Same as `cargo install ...` except when combined with `--locked` which sets the locked
-    /// status in the configuration file
+    /// Same as `cargo install ...` except sets the locked status in the configuration file
     #[arg(long)]
     install: bool,
 
@@ -870,21 +869,27 @@ impl List {
         Ok(())
     }
 
+    #[allow(clippy::too_many_lines)]
     fn list_crates(&self) -> Result<()> {
         let (crates, kinds) = self.get_crates()?;
 
         match self.format {
             Markdown => {
                 if crates.is_empty() {
+                    let kinds = list(&self.kinds().iter().collect::<Vec<_>>(), (", ", " or "));
+
                     if self.include.is_empty() {
                         Err(anyhow!(CargoListError::new(
                             1,
-                            "*No crates are installed.*".into(),
+                            format!("*No {kinds} crates are installed.*"),
                         )))
                     } else {
                         Err(anyhow!(CargoListError::new(
                             2,
-                            format!("*No crates matching `{:?}` are installed.*", self.include),
+                            format!(
+                                "*No {kinds} crates matching `{:?}` are installed.*",
+                                self.include
+                            ),
                         )))
                     }
                 } else {
@@ -1321,6 +1326,17 @@ impl Kind {
     }
 }
 
+impl std::fmt::Display for Kind {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Local => "local",
+            Git => "git",
+            External => "external",
+        }
+        .fmt(f)
+    }
+}
+
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 /// Protocol used to query the Crates.io index
@@ -1640,4 +1656,28 @@ fn red_or_green(cond: bool, v: &semver::Version) -> ColoredString {
 
 fn empty() -> ColoredString {
     "".normal()
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+fn list<D: std::fmt::Display>(i: &[D], seps: (&str, &str)) -> String {
+    let n = i.len();
+
+    match n {
+        0 => String::from("no"),
+        1 => i[0].to_string(),
+        2 => slice_to_strings(i).join(seps.1),
+        _ => format!(
+            "{},{}{}",
+            slice_to_strings(&i[..(n - 1)]).join(seps.0),
+            seps.1,
+            i.last().unwrap()
+        ),
+    }
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+fn slice_to_strings<D: std::fmt::Display>(i: &[D]) -> Vec<String> {
+    i.iter().map(ToString::to_string).collect()
 }
