@@ -79,7 +79,7 @@
     * 0.38.1 (2026-11-08): Fix an issue where `cargo list` exits with an error when it fails to get the `locked` setting of a crate missing from the config file, for example due to installing via `cargo install` as opposed to `cargo list --install`, and simply consider such crates as having `locked = false`
     * 0.38.2 (2026-11-09): Save the configuration file in `Crates::new()` so that any crates installed via `cargo install` are automatically added to the config file; also ensure `Crates::save_config()`runs after `List::install_crates()`; add instructions to config file; update dependencies
     * 0.38.3 (2026-11-10): fix `--install` description; fix `Crates` fields; restore full versions in `Cargo.toml`; add kinds to the "no crates installed" error for clarification; update dependencies
-    * 0.38.4 (2026-11-11): fix issue where `-R` ignores outdated crates; fix issue where updating the config file drops local/git crates; add list/update/install headings; clarify readme; simplify `List::row()`; add `Command::run()`; improve variable names; update dependencies
+    * 0.38.5 (2026-11-11): don't print list heading if `-f`; fix install heading; avoid running `List::get_crates()` twice at top of `List::update_crates()`
 
 [`atty`]: https://crates.io/crates/atty
 [`bunt`]: https://crates.io/crates/bunt

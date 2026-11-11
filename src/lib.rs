@@ -855,7 +855,7 @@ impl List {
         } else if self.update {
             self.update_crates()
         } else {
-            self.list_crates()
+            self.list_crates(None)
         }
     }
 
@@ -880,13 +880,21 @@ impl List {
         Ok(())
     }
 
-    #[allow(clippy::too_many_lines)]
-    fn list_crates(&self) -> Result<()> {
-        H1.print("List");
-        let (crates, kinds) = self.get_crates()?;
+    fn list_crates(&self, crates_kinds: Option<(&Crates, &IndexSet<Kind>)>) -> Result<()> {
+        if let Some((crates, kinds)) = crates_kinds {
+            self.list_crates_(crates, kinds)
+        } else {
+            let (crates, kinds) = self.get_crates()?;
+            self.list_crates_(&crates, &kinds)
+        }
+    }
 
+    #[allow(clippy::too_many_lines)]
+    fn list_crates_(&self, crates: &Crates, kinds: &IndexSet<Kind>) -> Result<()> {
         match self.format {
             Markdown => {
+                H1.print("List");
+
                 if crates.is_empty() {
                     let kinds = list(&self.kinds().iter().collect::<Vec<_>>(), (", ", " or "));
 
@@ -900,12 +908,12 @@ impl List {
                             2,
                             format!(
                                 "*No {kinds} crates matching `{:?}` are installed.*",
-                                self.include
+                                self.include,
                             ),
                         )))
                     }
                 } else {
-                    for kind in &kinds {
+                    for kind in kinds {
                         H2.print(&format!("{kind:?}"));
 
                         let mut t = if self.outdated_rust {
@@ -1022,9 +1030,9 @@ impl List {
         let (crates, kinds) = self.get_crates()?;
 
         if crates.outdated(self.ignore_req).is_empty() {
-            self.list_crates()
+            self.list_crates(Some((&crates, &kinds)))
         } else {
-            self.list_crates()?;
+            self.list_crates(Some((&crates, &kinds)))?;
 
             H1.print("Update");
 
@@ -1071,12 +1079,12 @@ impl List {
                 }
             }
 
-            self.list_crates()
+            self.list_crates(None)
         }
     }
 
     fn install_crates(&mut self) -> Result<()> {
-        println!("{}\n", "# Install".magenta().bold());
+        H1.print("Install");
 
         let mut shell = Shell {
             dry_run: self.dry_run,
