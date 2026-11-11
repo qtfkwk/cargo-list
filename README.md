@@ -2,7 +2,7 @@
 
 ```text
 $ cargo list -V
-cargo-list 0.38.3
+cargo-list 0.38.4
 ```
 
 ```text

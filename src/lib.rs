@@ -79,6 +79,9 @@ pub struct Crates {
     protocol: Protocol,
     rust_version: semver::Version,
     installed: BTreeMap<String, Crate>,
+
+    #[serde(skip)]
+    config: Config,
 }
 
 impl Crates {
@@ -106,10 +109,11 @@ impl Crates {
         let rust_version = get_rust_version()?;
         let installed = crates.to_map(include, kinds, &rust_version, &config)?;
 
-        let crates = Crates {
+        let mut crates = Crates {
             protocol,
             rust_version,
             installed,
+            config,
         };
 
         crates.save_config()?;
@@ -136,16 +140,17 @@ impl Crates {
     }
 
     /// Save the config file
-    pub fn save_config(&self) -> Result<()> {
-        Config {
-            protocol: self.protocol,
-            crates: self
-                .installed
-                .iter()
-                .map(|(k, v)| (k.clone(), CrateConfig { locked: v.locked }))
-                .collect(),
+    pub fn save_config(&mut self) -> Result<()> {
+        for (name, krate) in &self.installed {
+            self.config.crates.insert(
+                name.clone(),
+                CrateConfig {
+                    locked: krate.locked,
+                },
+            );
         }
-        .save()
+
+        self.config.save()
     }
 
     /// Return crate references for crates of the given kind
@@ -166,14 +171,15 @@ impl Crates {
         if include_pinned {
             self.installed
                 .par_iter()
-                .filter_map(|(name, c)| {
-                    (c.outdated || (c.pinned.is_some() && !c.newer.is_empty())).then_some((name, c))
+                .filter_map(|(name, krate)| {
+                    (krate.outdated || (krate.pinned.is_some() && !krate.newer.is_empty()))
+                        .then_some((name, krate))
                 })
                 .collect()
         } else {
             self.installed
                 .par_iter()
-                .filter_map(|(name, c)| c.outdated.then_some((name, c)))
+                .filter_map(|(name, krate)| krate.outdated.then_some((name, krate)))
                 .collect()
         }
     }
@@ -314,7 +320,7 @@ impl CratesJson {
         let results = self
             .installs
             .into_par_iter()
-            .map(|(k, v)| {
+            .map(|(k, crate_json)| {
                 let name = k
                     .split_once(' ')
                     .map(|(name, _)| name)
@@ -324,8 +330,13 @@ impl CratesJson {
                     return Ok(None);
                 }
 
-                v.into_crate(&k, rust_version, config)
-                    .map(|c| kinds.contains(&c.kind).then_some((c.name.clone(), c)))
+                crate_json
+                    .into_crate(&k, rust_version, config)
+                    .map(|krate| {
+                        kinds
+                            .contains(&krate.kind)
+                            .then_some((krate.name.clone(), krate))
+                    })
             })
             .collect::<Vec<Result<Option<(String, Crate)>>>>();
 
@@ -871,6 +882,7 @@ impl List {
 
     #[allow(clippy::too_many_lines)]
     fn list_crates(&self) -> Result<()> {
+        H1.print("List");
         let (crates, kinds) = self.get_crates()?;
 
         match self.format {
@@ -894,7 +906,7 @@ impl List {
                     }
                 } else {
                     for kind in &kinds {
-                        println!("{}\n", format!("# {kind:?}").magenta().bold());
+                        H2.print(&format!("{kind:?}"));
 
                         let mut t = if self.outdated_rust {
                             Veg::table(&TABLE_HEAD.replace("\n\n", "|-").replace("\n-", "|Rust\n-"))
@@ -904,8 +916,16 @@ impl List {
 
                         let mut outdated = 0;
                         let mut outdated_pinned = 0;
+                        let mut outdated_rust = 0;
                         for (i, c) in crates.kind(*kind).into_iter().enumerate() {
-                            self.row(i, c, &mut t, &mut outdated, &mut outdated_pinned);
+                            self.row(
+                                i,
+                                c,
+                                &mut t,
+                                &mut outdated,
+                                &mut outdated_pinned,
+                                &mut outdated_rust,
+                            );
                         }
 
                         // Print the table
@@ -914,47 +934,61 @@ impl List {
                         }
 
                         // Print a summary
-                        if *kind == External {
-                            if outdated == 0 {
-                                println!(
-                                    "{}\n",
-                                    format!(
-                                        "**All {}external crates are up-to-date!**",
-                                        if outdated_pinned > 0 { "unpinned " } else { "" },
-                                    )
-                                    .green()
-                                    .bold(),
-                                );
-                            } else {
-                                println!(
-                                    "{}\n",
-                                    format!(
-                                        "**Need to update {} external crate{}!**",
-                                        outdated,
-                                        s(outdated),
-                                    )
-                                    .red()
-                                    .bold(),
-                                );
-                            }
+                        if outdated == 0 {
+                            println!(
+                                "{}\n",
+                                format!(
+                                    "**No {}{kind} crates are outdated!**",
+                                    if outdated_pinned > 0 { "unpinned " } else { "" },
+                                )
+                                .green()
+                                .bold(),
+                            );
+                        } else {
+                            println!(
+                                "{}\n",
+                                format!(
+                                    "**Need to update {} {kind} crate{}!**",
+                                    outdated,
+                                    s(outdated),
+                                )
+                                .red()
+                                .bold(),
+                            );
+                        }
 
-                            if outdated_pinned > 0 {
-                                println!(
-                                    "{}\n",
-                                    format!(
-                                        "*Consider updating {} pinned external crate{}{}.*",
-                                        outdated_pinned,
-                                        s(outdated_pinned),
-                                        if self.ignore_req {
-                                            ""
-                                        } else {
-                                            "... add `-I` to view"
-                                        },
-                                    )
-                                    .yellow()
-                                    .italic(),
-                                );
-                            }
+                        if outdated_rust > 0 {
+                            println!(
+                                "{}\n",
+                                format!(
+                                    "\
+                                        *Consider reinstalling {} {kind} crate{} due to \
+                                        outdated Rust.*\
+                                    ",
+                                    outdated_rust,
+                                    s(outdated_rust),
+                                )
+                                .yellow()
+                                .italic(),
+                            );
+                        }
+
+                        if outdated_pinned > 0 {
+                            println!(
+                                "{}\n",
+                                format!(
+                                    "*Consider updating {} pinned {kind} crate{}{}.*",
+                                    outdated_pinned,
+                                    s(outdated_pinned),
+                                    if self.ignore_req {
+                                        ""
+                                    } else {
+                                        "... add `-I` to view"
+                                    },
+                                )
+                                .yellow()
+                                .italic(),
+                            );
                         }
                     }
 
@@ -992,6 +1026,8 @@ impl List {
         } else {
             self.list_crates()?;
 
+            H1.print("Update");
+
             for kind in &kinds {
                 if *kind != External {
                     continue;
@@ -999,21 +1035,21 @@ impl List {
 
                 let mut updates = vec![];
 
-                for c in crates.kind(*kind) {
-                    if self.outdated_rust && c.outdated_rust {
+                for krate in crates.kind(*kind) {
+                    if self.outdated_rust && krate.outdated_rust {
                         // Update crate installed/compiled with outdated Rust
-                        updates.push(c);
-                    } else if c.outdated {
+                        updates.push(krate);
+                    } else if krate.outdated {
                         // Update outdated crate
-                        updates.push(c);
-                    } else if self.ignore_req && !c.newer.is_empty() {
+                        updates.push(krate);
+                    } else if self.ignore_req && !krate.newer.is_empty() {
                         // Update outdated pinned crate
-                        updates.push(c);
+                        updates.push(krate);
                     }
                 }
 
                 if !updates.is_empty() {
-                    println!("{}\n", format!("# {kind:?}").magenta().bold());
+                    H2.print(&format!("{kind:?}"));
 
                     let mut shell = Shell {
                         dry_run: self.dry_run,
@@ -1024,11 +1060,11 @@ impl List {
                         shell.info = "bash".into();
                     }
 
-                    for c in &updates {
-                        println!("{}\n", format!("## {}", c.name).yellow().bold());
+                    for krate in &updates {
+                        H3.print(&format!("`{}`", krate.name));
 
                         let _ = shell.run(&[sprint::Command::new(
-                            &c.update_command(self.ignore_req).join(" "),
+                            &krate.update_command(self.ignore_req).join(" "),
                         )]);
                         // TODO: Handle failed update
                     }
@@ -1054,7 +1090,7 @@ impl List {
         let mut crate_names = BTreeSet::new();
 
         for i in &self.include {
-            println!("{}\n", format!("## {i:?}").yellow().bold());
+            H2.print(&format!("`{i:?}`"));
 
             let _ = shell.run(&[sprint::Command {
                 command: if self.locked {
@@ -1126,27 +1162,30 @@ impl List {
     #[allow(clippy::too_many_lines)]
     fn row(
         &self,
-        i: usize,
-        c: &Crate,
-        t: &mut Veg,
+        idx: usize,
+        krate: &Crate,
+        table: &mut Veg,
         outdated: &mut usize,
         outdated_pinned: &mut usize,
+        outdated_rust: &mut usize,
     ) {
-        if c.kind == External {
-            let available = if c.pinned.is_some() && !c.newer.is_empty() {
-                // Pinned AND outdated
+        if krate.kind == External {
+            let available = if krate.pinned.is_some() && !krate.newer.is_empty() {
+                // Pinned AND outdated => comma-separated newer versions
 
                 *outdated_pinned += 1;
 
-                c.newer
+                krate
+                    .newer
                     .iter()
                     .map(ToString::to_string)
                     .collect::<Vec<_>>()
                     .join(", ")
             } else {
-                // Not pinned OR pinned and up-to-date
+                // Not pinned OR pinned and up-to-date => available version
 
-                c.available
+                krate
+                    .available
                     .as_ref()
                     .map_or_else(String::new, ToString::to_string)
             };
@@ -1154,137 +1193,132 @@ impl List {
             if self.outdated_rust {
                 // -R
 
-                if c.outdated_rust {
+                if krate.outdated_rust {
                     // Crate is installed/compiled with outdated Rust
+
+                    *outdated_rust += 1;
+
+                    table.push(Row::new(
+                        number(idx),
+                        krate.name.normal(),
+                        opt_normal(krate.pinned.as_ref()),
+                        krate.installed.to_string().green(),
+                        opt_warn(krate.pinned.as_ref(), &available),
+                        locked(krate.locked),
+                        krate.rust_version.to_string().red(),
+                        self.outdated_rust,
+                    ));
+                } else if krate.outdated {
+                    // Crate is outdated
 
                     *outdated += 1;
 
-                    t.push(Row::new(
-                        number(i),
-                        c.name.normal(),
-                        opt_normal(c.pinned.as_ref()),
-                        c.installed.to_string().green(),
-                        opt_warn(c.pinned.as_ref(), &available),
-                        locked(c.locked),
-                        c.rust_version.to_string().red(),
+                    table.push(Row::new(
+                        number(idx),
+                        krate.name.normal(),
+                        opt_normal(krate.pinned.as_ref()),
+                        krate.installed.to_string().red(),
+                        opt_warn(krate.pinned.as_ref(), &available),
+                        locked(krate.locked),
+                        krate.rust_version.to_string().green(),
                         self.outdated_rust,
                     ));
-                } else if !c.newer.is_empty() {
+                } else if !krate.newer.is_empty() {
                     // Crate is pinned but there are updates
 
-                    t.push(Row::new(
-                        number(i),
-                        c.name.normal(),
-                        opt_normal(c.pinned.as_ref()),
-                        c.installed.to_string().green(),
-                        opt_warn(c.pinned.as_ref(), &available),
-                        locked(c.locked),
-                        c.rust_version.to_string().green(),
+                    table.push(Row::new(
+                        number(idx),
+                        krate.name.normal(),
+                        opt_normal(krate.pinned.as_ref()),
+                        krate.installed.to_string().cyan(),
+                        opt_warn(krate.pinned.as_ref(), &available),
+                        locked(krate.locked),
+                        krate.rust_version.to_string().green(),
                         self.outdated_rust,
                     ));
                 } else if !self.outdated {
                     // Include up-to-date crates
 
-                    t.push(Row::new(
-                        number(i),
-                        c.name.normal(),
-                        opt_normal(c.pinned.as_ref()),
-                        c.installed.to_string().green(),
+                    table.push(Row::new(
+                        number(idx),
+                        krate.name.normal(),
+                        opt_normal(krate.pinned.as_ref()),
+                        krate.installed.to_string().green(),
                         empty(),
-                        locked(c.locked),
-                        c.rust_version.to_string().green(),
+                        locked(krate.locked),
+                        krate.rust_version.to_string().green(),
                         self.outdated_rust,
                     ));
                 }
             } else {
                 // No -R...
 
-                if c.outdated {
-                    // Include outdated crate
+                if krate.outdated {
+                    // Crate is outdated
 
                     *outdated += 1;
 
-                    t.push(Row::new(
-                        number(i),
-                        c.name.normal(),
-                        opt_normal(c.pinned.as_ref()),
-                        c.installed.to_string().red(),
+                    table.push(Row::new(
+                        number(idx),
+                        krate.name.normal(),
+                        opt_normal(krate.pinned.as_ref()),
+                        krate.installed.to_string().red(),
                         available.bold(),
-                        locked(c.locked),
-                        red_or_green(c.outdated_rust, &c.rust_version),
+                        locked(krate.locked),
+                        red_or_green(krate.outdated_rust, &krate.rust_version.to_string()),
                         self.outdated_rust,
                     ));
-                } else if !c.newer.is_empty() {
+                } else if !krate.newer.is_empty() {
                     // Include outdated pinned crate
 
-                    t.push(Row::new(
-                        number(i),
-                        c.name.normal(),
-                        opt_normal(c.pinned.as_ref()),
-                        c.installed.to_string().yellow(),
-                        c.newer[0].to_string().bold().green(),
-                        locked(c.locked),
+                    table.push(Row::new(
+                        number(idx),
+                        krate.name.normal(),
+                        opt_normal(krate.pinned.as_ref()),
+                        krate.installed.to_string().yellow(),
+                        krate.newer[0].to_string().green().bold(),
+                        locked(krate.locked),
                         empty(),
                         self.outdated_rust,
                     ));
                 } else if !self.outdated {
                     // Include every crate
 
-                    t.push(Row::new(
-                        number(i),
-                        c.name.normal(),
-                        opt_normal(c.pinned.as_ref()),
-                        c.installed.to_string().green(),
+                    table.push(Row::new(
+                        number(idx),
+                        krate.name.normal(),
+                        opt_normal(krate.pinned.as_ref()),
+                        krate.installed.to_string().green(),
                         empty(),
-                        locked(c.locked),
+                        locked(krate.locked),
                         empty(),
                         self.outdated_rust,
                     ));
                 }
             }
-        } else if !self.outdated {
-            // Include git and local crates
+        } else if !self.outdated || (self.outdated_rust && krate.outdated_rust) {
+            // Crate is local or git and not hiding up-to-date crates or -R and rust is outdated
 
-            if self.outdated_rust {
-                // -R
-
-                if c.outdated_rust {
-                    t.push(Row::new(
-                        number(i),
-                        c.name.normal(),
-                        empty(),
-                        c.installed.to_string().cyan(),
-                        empty(),
-                        locked(c.locked),
-                        c.rust_version.to_string().red(),
-                        self.outdated_rust,
-                    ));
+            table.push(Row::new(
+                number(idx),
+                krate.name.normal(),
+                empty(),
+                krate.installed.to_string().cyan(),
+                empty(),
+                locked(krate.locked),
+                if self.outdated_rust {
+                    // -R
+                    if krate.outdated_rust {
+                        *outdated_rust += 1;
+                        krate.rust_version.to_string().red()
+                    } else {
+                        krate.rust_version.to_string().green()
+                    }
                 } else {
-                    t.push(Row::new(
-                        number(i),
-                        c.name.normal(),
-                        empty(),
-                        c.installed.to_string().cyan(),
-                        empty(),
-                        locked(c.locked),
-                        c.rust_version.to_string().green(),
-                        self.outdated_rust,
-                    ));
-                }
-            } else {
-                // No -R...
-
-                t.push(Row::new(
-                    number(i),
-                    c.name.normal(),
-                    empty(),
-                    c.installed.to_string().cyan(),
-                    empty(),
-                    locked(c.locked),
-                    empty(),
-                    self.outdated_rust,
-                ));
-            }
+                    empty()
+                },
+                self.outdated_rust,
+            ));
         }
     }
 }
@@ -1301,7 +1335,7 @@ pub enum Kind {
     /// Installed from a git repository
     Git,
 
-    /// Installed from <https://crates.io>
+    /// Installed from an external registry (<https://crates.io>)
     #[default]
     External,
 }
@@ -1385,6 +1419,23 @@ impl std::fmt::Display for Protocol {
 pub enum Command {
     /// List and update installed crates
     List(List),
+}
+
+impl Command {
+    /// Run the command
+    pub fn run(self) {
+        match self {
+            Command::List(mut list) => {
+                if let Err(e) = list.run() {
+                    eprintln!("{}", format!("Error: {e}").red().bold());
+                    std::process::exit(
+                        e.downcast_ref::<CargoListError>()
+                            .map_or(1, |e| e.exit_code),
+                    );
+                }
+            }
+        }
+    }
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1577,7 +1628,7 @@ pub fn get_rust_version() -> Result<semver::Version> {
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 /// Parse a string to a [`semver::Version`]
-pub fn parse_to_version(s: &str) -> Result<semver::Version> {
+fn parse_to_version(s: &str) -> Result<semver::Version> {
     match semver::Version::parse(s) {
         Ok(v) => Ok(v),
         Err(e) => Err(anyhow!("Failed to parse version string `{s}`: {e}")),
@@ -1619,13 +1670,13 @@ fn s(n: usize) -> &'static str {
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 fn locked(cond: bool) -> ColoredString {
-    if cond { "✔".bold().green() } else { empty() }
+    if cond { "✔".green().bold() } else { empty() }
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-fn number(i: usize) -> ColoredString {
-    (i + 1).to_string().normal()
+fn number(idx: usize) -> ColoredString {
+    (idx + 1).to_string().normal()
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1633,6 +1684,8 @@ fn number(i: usize) -> ColoredString {
 fn opt_normal<T: std::fmt::Display>(v: Option<&T>) -> ColoredString {
     v.map_or_else(empty, |x| x.to_string().normal())
 }
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 fn opt_warn<T: std::fmt::Display>(o: Option<&T>, s: &str) -> ColoredString {
     if o.is_some() {
@@ -1644,12 +1697,8 @@ fn opt_warn<T: std::fmt::Display>(o: Option<&T>, s: &str) -> ColoredString {
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-fn red_or_green(cond: bool, v: &semver::Version) -> ColoredString {
-    if cond {
-        v.to_string().red()
-    } else {
-        v.to_string().green()
-    }
+fn red_or_green(cond: bool, s: &str) -> ColoredString {
+    if cond { s.red() } else { s.green() }
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1660,24 +1709,50 @@ fn empty() -> ColoredString {
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-fn list<D: std::fmt::Display>(i: &[D], seps: (&str, &str)) -> String {
-    let n = i.len();
+fn list<D: std::fmt::Display>(slice: &[D], seps: (&str, &str)) -> String {
+    let n = slice.len();
 
     match n {
         0 => String::from("no"),
-        1 => i[0].to_string(),
-        2 => slice_to_strings(i).join(seps.1),
+        1 => slice[0].to_string(),
+        2 => slice_to_strings(slice).join(seps.1),
         _ => format!(
             "{},{}{}",
-            slice_to_strings(&i[..(n - 1)]).join(seps.0),
+            slice_to_strings(&slice[..(n - 1)]).join(seps.0),
             seps.1,
-            i.last().unwrap()
+            slice.last().unwrap()
         ),
     }
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-fn slice_to_strings<D: std::fmt::Display>(i: &[D]) -> Vec<String> {
-    i.iter().map(ToString::to_string).collect()
+fn slice_to_strings<D: std::fmt::Display>(slice: &[D]) -> Vec<String> {
+    slice.iter().map(ToString::to_string).collect()
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+enum Heading {
+    H1,
+    H2,
+    H3,
+}
+
+use Heading::{H1, H2, H3};
+
+impl Heading {
+    fn print(&self, s: &str) {
+        match self {
+            H1 => {
+                println!("{}\n", format!("# {s}").magenta().bold());
+            }
+            H2 => {
+                println!("{}\n", format!("## {s}").cyan().bold());
+            }
+            H3 => {
+                println!("{}\n", format!("### {s}").yellow().bold());
+            }
+        }
+    }
 }
