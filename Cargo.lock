@@ -160,11 +160,11 @@ checksum = "fc652a48c352aef3ea3aed32080501cf3ef6ed5da78602a020c991775b0aff04"
 
 [[package]]
 name = "cargo-list"
-version = "0.38.5"
+version = "0.38.6"
 dependencies = [
  "anyhow",
  "clap",
- "clap-cargo 0.19.0",
+ "clap-cargo 0.19.1",
  "dirs",
  "env_logger",
  "indexmap",
@@ -239,9 +239,9 @@ dependencies = [
 
 [[package]]
 name = "clap-cargo"
-version = "0.19.0"
+version = "0.19.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ac0fb996b5acdd543c8b8ff723c719715d437fdce607ac1fda01c977f568020d"
+checksum = "304ac95d4e2bb9bb63e3dfb55c1f744c599140d7992b756288dc440f1dea1a55"
 dependencies = [
  "anstyle",
  "clap",

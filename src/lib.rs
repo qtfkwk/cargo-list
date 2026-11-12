@@ -916,7 +916,7 @@ impl List {
                     for kind in kinds {
                         H2.print(&format!("{kind:?}"));
 
-                        let mut t = if self.outdated_rust {
+                        let mut table = if self.outdated_rust {
                             Veg::table(&TABLE_HEAD.replace("\n\n", "|-").replace("\n-", "|Rust\n-"))
                         } else {
                             Veg::table(TABLE_HEAD.trim())
@@ -925,11 +925,12 @@ impl List {
                         let mut outdated = 0;
                         let mut outdated_pinned = 0;
                         let mut outdated_rust = 0;
-                        for (i, c) in crates.kind(*kind).into_iter().enumerate() {
+                        let crates_kind = crates.kind(*kind);
+                        for (idx, krate) in crates_kind.iter().enumerate() {
                             self.row(
-                                i,
-                                c,
-                                &mut t,
+                                idx,
+                                krate,
+                                &mut table,
                                 &mut outdated,
                                 &mut outdated_pinned,
                                 &mut outdated_rust,
@@ -937,21 +938,28 @@ impl List {
                         }
 
                         // Print the table
-                        if !t.is_empty() {
-                            println!("{}", t.markdown()?);
+                        if !table.is_empty() {
+                            println!("{}", table.markdown()?);
                         }
 
                         // Print a summary
                         if outdated == 0 {
-                            println!(
-                                "{}\n",
-                                format!(
-                                    "**No {}{kind} crates are outdated!**",
-                                    if outdated_pinned > 0 { "unpinned " } else { "" },
-                                )
-                                .green()
-                                .bold(),
-                            );
+                            if crates_kind.is_empty() {
+                                println!(
+                                    "{}\n",
+                                    format!("*No {kind} crates are installed!*").italic(),
+                                );
+                            } else {
+                                println!(
+                                    "{}\n",
+                                    format!(
+                                        "**No {}{kind} crates are outdated!**",
+                                        if outdated_pinned > 0 { "unpinned " } else { "" },
+                                    )
+                                    .green()
+                                    .bold(),
+                                );
+                            }
                         } else {
                             println!(
                                 "{}\n",
