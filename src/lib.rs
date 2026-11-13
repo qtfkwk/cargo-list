@@ -955,10 +955,21 @@ impl List {
                         // Print a summary
                         if outdated == 0 {
                             if crates_kind.is_empty() {
-                                println!(
-                                    "{}\n",
-                                    format!("*No {kind} crates are installed!*").italic(),
-                                );
+                                if self.include.is_empty() {
+                                    println!(
+                                        "{}\n",
+                                        format!("*No {kind} crates are installed!*").italic(),
+                                    );
+                                } else {
+                                    println!(
+                                        "{}\n",
+                                        format!(
+                                            "*No {kind} crates matching `{:?}` are installed!*",
+                                            self.include,
+                                        )
+                                        .italic(),
+                                    );
+                                }
                             } else {
                                 println!(
                                     "{}\n",
