@@ -243,8 +243,8 @@ RUST_LOG=reqwest=debug,hyper=debug cargo list
 
 ## Show running configuration
 
-```bash
-cargo list -c
+```text
+$ cargo list -c
 !run:../target/release/cargo-list list -c |sed 's/\/home\/[^\/]*/\/home\/user/'
 ```
 

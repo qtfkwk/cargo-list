@@ -2,7 +2,7 @@
 
 ```text
 $ cargo list -V
-cargo-list 0.38.6
+cargo-list 0.38.7
 ```
 
 ```text
@@ -348,8 +348,8 @@ RUST_LOG=reqwest=debug,hyper=debug cargo list
 
 ## Show running configuration
 
-```bash
-cargo list -c
+```text
+$ cargo list -c
 # Configuration
 
 - Configuration file: `/home/user/.config/cargo-list/config.toml`

@@ -82,6 +82,7 @@
     * 0.38.4 (2026-11-11): fix issue where `-R` ignores outdated crates; fix issue where updating the config file drops local/git crates; add list/update/install headings; clarify readme; simplify `List::row()`; add `Command::run()`; improve variable names; update dependencies
     * 0.38.5 (2026-11-11): don't print list heading if `-f`; fix install heading; avoid running `List::get_crates()` twice at top of `List::update_crates()`
     * 0.38.6 (2026-11-12): fix kind with zero crates message; fix changelog; update dependencies
+    * 0.38.7 (2026-11-12): fix numbering of crates with `-o`; fix `-Ru` failure to update if only crates with outdated rust; update dependencies
 
 [`atty`]: https://crates.io/crates/atty
 [`bunt`]: https://crates.io/crates/bunt

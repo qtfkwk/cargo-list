@@ -184,6 +184,15 @@ impl Crates {
         }
     }
 
+    /// Crates with outdated Rust
+    #[must_use]
+    pub fn outdated_rust(&self) -> BTreeMap<&String, &Crate> {
+        self.installed
+            .par_iter()
+            .filter_map(|(name, krate)| krate.outdated_rust.then_some((name, krate)))
+            .collect()
+    }
+
     /// Protocol
     #[must_use]
     pub fn protocol(&self) -> &Protocol {
@@ -925,10 +934,11 @@ impl List {
                         let mut outdated = 0;
                         let mut outdated_pinned = 0;
                         let mut outdated_rust = 0;
+                        let mut idx = 0;
                         let crates_kind = crates.kind(*kind);
-                        for (idx, krate) in crates_kind.iter().enumerate() {
+                        for krate in &crates_kind {
                             self.row(
-                                idx,
+                                &mut idx,
                                 krate,
                                 &mut table,
                                 &mut outdated,
@@ -1037,7 +1047,7 @@ impl List {
     fn update_crates(&self) -> Result<()> {
         let (crates, kinds) = self.get_crates()?;
 
-        if crates.outdated(self.ignore_req).is_empty() {
+        if crates.outdated(self.ignore_req).is_empty() && crates.outdated_rust().is_empty() {
             self.list_crates(Some((&crates, &kinds)))
         } else {
             self.list_crates(Some((&crates, &kinds)))?;
@@ -1178,7 +1188,7 @@ impl List {
     #[allow(clippy::too_many_lines)]
     fn row(
         &self,
-        idx: usize,
+        idx: &mut usize,
         krate: &Crate,
         table: &mut Veg,
         outdated: &mut usize,
@@ -1691,8 +1701,9 @@ fn locked(cond: bool) -> ColoredString {
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-fn number(idx: usize) -> ColoredString {
-    (idx + 1).to_string().normal()
+fn number(idx: &mut usize) -> ColoredString {
+    *idx += 1;
+    idx.to_string().normal()
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
